@@ -1,48 +1,82 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import SenadorCard from "../components/SenadorCard"
-import { useVotaciones, useSenatorsData } from "../lib/data"
-import { Search, AlertCircle } from "lucide-react"
-import Skeleton from "../components/Skeleton"
-import type { Senator } from "../types"
-import { PaginationComponent } from "../components/Pagination"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+import { AlertCircle, Check, ChevronsUpDown, Search } from "lucide-react";
+import { useEffect, useState } from "react";
+import { PaginationComponent } from "../components/Pagination";
+import SenadorCard from "../components/SenadorCard";
+import Skeleton from "../components/Skeleton";
+import { useSenatorsData, useVotaciones } from "../lib/data";
+import type { Senator } from "../types";
+import { useRouter, useSearchParams } from "next/navigation";
 
-const SENATORS_PER_PAGE = 9
+const SENATORS_PER_PAGE = 9;
 
 type SortOption = {
-  value: string
-  label: string
-  sortFn: (a: Senator, b: Senator) => number
-}
+  value: string;
+  label: string;
+  sortFn: (a: Senator, b: Senator) => number;
+};
 
 export default function SenadoresContent() {
-  const [senadores, setSenadores] = useState<Senator[]>([])
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedParty, setSelectedParty] = useState<string>("TODOS")
-  const [currentPage, setCurrentPage] = useState(1)
-  const [sortBy, setSortBy] = useState<string>("recentPeriod")
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  const [senadores, setSenadores] = useState<Senator[]>([]);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const currentPage = Number(searchParams.get("page")) || 1;
+  const searchTerm = searchParams.get("search") || "";
+  const selectedParty = searchParams.get("party") || "TODOS";
+  const sortBy = searchParams.get("sort") || "period";
+  const sortOrder = (searchParams.get("order") || "desc") as "asc" | "desc";
 
-  const { votaciones, isLoading: isLoadingVotaciones, isError: isErrorVotaciones } = useVotaciones()
-  const { senatorsData, isLoading: isLoadingSenatorsData, isError: isErrorSenatorsData } = useSenatorsData()
+  const {
+    votaciones,
+    isLoading: isLoadingVotaciones,
+    isError: isErrorVotaciones
+  } = useVotaciones();
+  const {
+    senatorsData,
+    isLoading: isLoadingSenatorsData,
+    isError: isErrorSenatorsData
+  } = useSenatorsData();
 
   useEffect(() => {
     if (votaciones && senatorsData) {
-      const senadoresData = getSenadores(votaciones, senatorsData)
-      setSenadores(senadoresData)
+      const senadoresData = getSenadores(votaciones, senatorsData);
+      setSenadores(senadoresData);
     }
-  }, [votaciones, senatorsData])
+  }, [votaciones, senatorsData]);
 
   // Get unique parties from senators
   const uniqueParties = Array.from(
     new Set(
       senadores
-        .map(senator => senator.party || "Sin partido")
-        .filter(party => party !== "Sin partido")
+        .map((senator) => senator.party || "Sin partido")
+        .filter((party) => party !== "Sin partido")
     )
-  ).sort()
+  ).sort();
 
   const sortOptions: SortOption[] = [
     {
@@ -51,71 +85,112 @@ export default function SenadoresContent() {
       sortFn: () => 0
     },
     {
-      value: "recentPeriod",
-      label: "Período más reciente",
+      value: "period",
+      label: "Período",
       sortFn: (a, b) => {
         if (!a.periodoReal || !b.periodoReal) return 0;
-        return new Date(b.periodoReal.inicio).getTime() - new Date(a.periodoReal.inicio).getTime();
+        return (
+          new Date(b.periodoReal.inicio).getTime() -
+          new Date(a.periodoReal.inicio).getTime()
+        );
       }
     },
     {
-      value: "mostVotes",
-      label: "Mayor cantidad de votos",
+      value: "votes",
+      label: "Cantidad de votos",
       sortFn: (a, b) => b.totalVotes - a.totalVotes
     },
     {
-      value: "leastVotes",
-      label: "Menor cantidad de votos",
-      sortFn: (a, b) => a.totalVotes - b.totalVotes
-    },
-    {
-      value: "mostPositive",
-      label: "Mayor cantidad de votos positivos",
+      value: "positive",
+      label: "Votos positivos",
       sortFn: (a, b) => b.affirmativeVotes - a.affirmativeVotes
     },
     {
-      value: "leastPositive",
-      label: "Menor cantidad de votos positivos",
-      sortFn: (a, b) => a.affirmativeVotes - b.affirmativeVotes
-    },
-    {
-      value: "mostNegative",
-      label: "Mayor cantidad de votos negativos",
+      value: "negative",
+      label: "Votos negativos",
       sortFn: (a, b) => b.negativeVotes - a.negativeVotes
     },
     {
-      value: "leastNegative",
-      label: "Menor cantidad de votos negativos",
-      sortFn: (a, b) => a.negativeVotes - b.negativeVotes
+      value: "abstentions",
+      label: "Abstenciones",
+      sortFn: (a, b) =>
+        b.totalVotes -
+        b.affirmativeVotes -
+        b.negativeVotes -
+        (a.totalVotes - a.affirmativeVotes - a.negativeVotes)
     },
     {
-      value: "mostAbstentions",
-      label: "Mayor cantidad de abstenciones",
-      sortFn: (a, b) => (b.totalVotes - b.affirmativeVotes - b.negativeVotes) - 
-                        (a.totalVotes - a.affirmativeVotes - a.negativeVotes)
-    },
-    {
-      value: "leastAbstentions",
-      label: "Menor cantidad de abstenciones",
-      sortFn: (a, b) => (a.totalVotes - a.affirmativeVotes - a.negativeVotes) - 
-                        (b.totalVotes - b.affirmativeVotes - b.negativeVotes)
+      value: "attendance",
+      label: "Presentismo",
+      sortFn: (a, b) => {
+        const getAttendancePercentage = (senator: Senator) => {
+          const totalVotes = senator.totalVotes;
+          // Present votes are affirmative + negative votes only
+          const presentVotes = senator.affirmativeVotes + senator.negativeVotes;
+          return (presentVotes / totalVotes) * 100;
+        };
+
+        return getAttendancePercentage(b) - getAttendancePercentage(a);
+      }
     }
-  ]
+  ];
 
   const filteredSenadores = senadores
     .filter((senador) => {
-      const matchesSearch = senador.name.toLowerCase().includes(searchTerm.toLowerCase())
-      const matchesParty = selectedParty === "TODOS" || senador.party === selectedParty
-      return matchesSearch && matchesParty
+      const matchesSearch = senador.name
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+      const matchesParty =
+        selectedParty === "TODOS" || senador.party === selectedParty;
+      return matchesSearch && matchesParty;
     })
-    .sort(sortOptions.find(option => option.value === sortBy)?.sortFn || (() => 0))
+    .sort((a, b) => {
+      const sortOption = sortOptions.find((option) => option.value === sortBy);
+      if (!sortOption) return 0;
+      return sortOrder === "desc"
+        ? sortOption.sortFn(a, b)
+        : sortOption.sortFn(b, a);
+    });
 
   const paginatedSenadores = filteredSenadores.slice(
     (currentPage - 1) * SENATORS_PER_PAGE,
-    currentPage * SENATORS_PER_PAGE,
-  )
+    currentPage * SENATORS_PER_PAGE
+  );
 
-  const totalPages = Math.ceil(filteredSenadores.length / SENATORS_PER_PAGE)
+  const totalPages = Math.ceil(filteredSenadores.length / SENATORS_PER_PAGE);
+
+  const updateUrlParams = (updates: Record<string, string>) => {
+    const params = new URLSearchParams(searchParams.toString());
+    Object.entries(updates).forEach(([key, value]) => {
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
+    });
+    router.push(`/senadores?${params.toString()}`);
+  };
+
+  const handleSearch = (value: string) => {
+    updateUrlParams({ search: value, page: "1" });
+  };
+
+  const handlePartySelect = (value: string) => {
+    updateUrlParams({ party: value, page: "1" });
+    setPopoverOpen(false);
+  };
+
+  const handleSortChange = (value: string) => {
+    updateUrlParams({ sort: value, page: "1" });
+  };
+
+  const handleSortOrderToggle = () => {
+    updateUrlParams({ order: sortOrder === "asc" ? "desc" : "asc", page: "1" });
+  };
+
+  const handlePageChange = (page: number) => {
+    updateUrlParams({ page: page.toString() });
+  };
 
   if (isErrorVotaciones || isErrorSenatorsData) {
     return (
@@ -124,11 +199,14 @@ export default function SenadoresContent() {
           <div className="bg-red-100 dark:bg-red-900/20 p-4 rounded-full mb-6">
             <AlertCircle className="w-12 h-12 text-red-600 dark:text-red-500" />
           </div>
-          <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">No pudimos cargar los senadores</h1>
+          <h1 className="text-4xl font-bold mb-4 text-gray-900 dark:text-gray-100">
+            No pudimos cargar los senadores
+          </h1>
           <p className="text-gray-600 dark:text-gray-400 max-w-md mb-8">
-            Hubo un problema al cargar los datos de los senadores. Esto puede deberse a problemas de conexión o mantenimiento del servidor.
+            Hubo un problema al cargar los datos de los senadores. Esto puede
+            deberse a problemas de conexión o mantenimiento del servidor.
           </p>
-          <Button 
+          <Button
             onClick={() => window.location.reload()}
             variant="secondary"
             size="lg"
@@ -138,39 +216,83 @@ export default function SenadoresContent() {
           </Button>
         </div>
       </main>
-    )
+    );
   }
 
   return (
     <main className="container mx-auto px-4 py-8">
-      <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100">Senadores</h1>
-      <div className="space-y-4 mb-6">
-        <div className="relative">
+      <h1 className="text-4xl font-bold mb-8 text-gray-900 dark:text-gray-100">
+        Senadores
+      </h1>
+      <div className="flex flex-col md:flex-row gap-4 mb-6">
+        <div className="relative flex-1">
           <input
             type="text"
             placeholder="Buscar senador..."
             className="w-full p-2 pl-10 bg-white dark:bg-gray-800 text-gray-900 dark:text-white border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-500/40"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
           />
           <Search className="absolute left-3 top-2.5 text-gray-400" size={20} />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Select value={selectedParty} onValueChange={setSelectedParty}>
-            <SelectTrigger className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
-              <SelectValue placeholder="Filtrar por partido" />
-            </SelectTrigger>
-            <SelectContent className="max-h-[40vh] overflow-y-auto" side="top" align="start" position="popper">
-              <SelectItem value="TODOS">Todos los partidos</SelectItem>
-              {uniqueParties.map((party) => (
-                <SelectItem key={party} value={party}>
-                  {party}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-full bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700">
+
+        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              variant="outline"
+              role="combobox"
+              className="w-full md:w-[200px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 justify-between"
+            >
+              <span className="truncate">
+                {selectedParty === "TODOS"
+                  ? "Todos los partidos"
+                  : selectedParty || "Seleccionar partido"}
+              </span>
+              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+          <PopoverContent className="w-[200px] p-0">
+            <Command>
+              <CommandInput placeholder="Buscar partido..." />
+              <CommandEmpty>No se encontró el partido.</CommandEmpty>
+              <CommandList>
+                <CommandGroup>
+                  <CommandItem
+                    value="TODOS"
+                    onSelect={() => handlePartySelect("TODOS")}
+                  >
+                    <Check
+                      className={cn(
+                        "mr-2 h-4 w-4",
+                        selectedParty === "TODOS" ? "opacity-100" : "opacity-0"
+                      )}
+                    />
+                    Todos los partidos
+                  </CommandItem>
+                  {uniqueParties.map((party) => (
+                    <CommandItem
+                      key={party}
+                      value={party}
+                      onSelect={() => handlePartySelect(party)}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 h-4 w-4",
+                          selectedParty === party ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      {party}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              </CommandList>
+            </Command>
+          </PopoverContent>
+        </Popover>
+
+        <div className="flex">
+          <Select value={sortBy} onValueChange={handleSortChange}>
+            <SelectTrigger className="w-full md:w-[200px] bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 rounded-r-none border-r-0">
               <SelectValue placeholder="Ordenar por..." />
             </SelectTrigger>
             <SelectContent>
@@ -181,12 +303,24 @@ export default function SenadoresContent() {
               ))}
             </SelectContent>
           </Select>
+
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleSortOrderToggle}
+            className="aspect-square h-10 rounded-l-none border-l-0 bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700"
+          >
+            {sortOrder === "desc" ? "↓" : "↑"}
+          </Button>
         </div>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {isLoadingVotaciones || isLoadingSenatorsData
           ? Array.from({ length: SENATORS_PER_PAGE }).map((_, index) => (
-              <div key={index} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <div
+                key={index}
+                className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6"
+              >
                 <div className="flex items-center gap-4 mb-4">
                   <Skeleton className="w-16 h-16 rounded-full" />
                   <Skeleton className="h-6 w-3/4" />
@@ -199,24 +333,31 @@ export default function SenadoresContent() {
                 </div>
               </div>
             ))
-          : paginatedSenadores.map((senador) => <SenadorCard key={senador.name} {...senador} />)}
+          : paginatedSenadores.map((senador) => (
+              <SenadorCard key={senador.name} {...senador} />
+            ))}
       </div>
       {totalPages > 1 && (
         <div className="mt-8">
-          <PaginationComponent currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
+          <PaginationComponent
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+          />
         </div>
       )}
     </main>
-  )
+  );
 }
 
 function getSenadores(votaciones: any[], senatorsData: any[]): Senator[] {
-  const senadores: { [key: string]: Senator } = {}
+  const senadores: { [key: string]: Senator } = {};
 
   votaciones.forEach((votacion: any) => {
     votacion.votos.forEach((vote: any) => {
       if (!senadores[vote.nombre]) {
-        const senatorInfo = senatorsData.find((s) => s.nombre === vote.nombre) || {}
+        const senatorInfo =
+          senatorsData.find((s) => s.nombre === vote.nombre) || {};
         senadores[vote.nombre] = {
           name: vote.nombre,
           totalVotes: 0,
@@ -227,17 +368,20 @@ function getSenadores(votaciones: any[], senatorsData: any[]): Senator[] {
           province: senatorInfo.provincia,
           email: senatorInfo.email,
           telefono: senatorInfo.telefono,
-          twitter: senatorInfo.redes?.find((red: string) => red.includes('twitter.com')),
-          instagram: senatorInfo.redes?.find((red: string) => red.includes('instagram.com')),
+          twitter: senatorInfo.redes?.find((red: string) =>
+            red.includes("twitter.com")
+          ),
+          instagram: senatorInfo.redes?.find((red: string) =>
+            red.includes("instagram.com")
+          ),
           periodoReal: senatorInfo.periodoReal
-        }
+        };
       }
-      senadores[vote.nombre].totalVotes++
-      if (vote.voto === "si") senadores[vote.nombre].affirmativeVotes++
-      if (vote.voto === "no") senadores[vote.nombre].negativeVotes++
-    })
-  })
+      senadores[vote.nombre].totalVotes++;
+      if (vote.voto === "si") senadores[vote.nombre].affirmativeVotes++;
+      if (vote.voto === "no") senadores[vote.nombre].negativeVotes++;
+    });
+  });
 
-  return Object.values(senadores)
+  return Object.values(senadores);
 }
-

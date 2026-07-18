@@ -7,13 +7,65 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
+import { useRouter, useSearchParams } from "next/navigation"
 
 export default function VotacionesPageClient() {
   const { votaciones, isLoading, isError } = useVotaciones()
-  const [selectedResult, setSelectedResult] = useState("TODOS")
-  const [selectedYear, setSelectedYear] = useState("TODOS")
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  const [selectedResult, setSelectedResult] = useState(searchParams.get("result") || "TODOS")
+  const [selectedYear, setSelectedYear] = useState(searchParams.get("year") || "TODOS")
+  const [searchQuery, setSearchQuery] = useState(searchParams.get("search") || "")
   const [possibleResults, setPossibleResults] = useState<string[]>([])
   const [possibleYears, setPossibleYears] = useState<string[]>([])
+
+  // Update URL parameters when filters change
+  const updateUrlParams = (result: string, year: string, search: string) => {
+    const params = new URLSearchParams()
+    
+    if (result !== "TODOS") {
+      params.set("result", result)
+    }
+    
+    if (year !== "TODOS") {
+      params.set("year", year)
+    }
+    
+    if (search.trim()) {
+      params.set("search", search)
+    }
+    
+    const newUrl = params.toString() ? `?${params.toString()}` : window.location.pathname
+    router.push(newUrl, { scroll: false })
+  }
+
+  // Handle filter changes
+  const handleResultChange = (value: string) => {
+    setSelectedResult(value)
+    updateUrlParams(value, selectedYear, searchQuery)
+  }
+
+  const handleYearChange = (value: string) => {
+    setSelectedYear(value)
+    updateUrlParams(selectedResult, value, searchQuery)
+  }
+
+  const handleSearchChange = (value: string) => {
+    setSearchQuery(value)
+    updateUrlParams(selectedResult, selectedYear, value)
+  }
+
+  // Read URL parameters on initial render or when URL changes
+  useEffect(() => {
+    const result = searchParams.get("result") || "TODOS"
+    const year = searchParams.get("year") || "TODOS"
+    const search = searchParams.get("search") || ""
+    
+    setSelectedResult(result)
+    setSelectedYear(year)
+    setSearchQuery(search)
+  }, [searchParams])
 
   useEffect(() => {
     if (votaciones) {
@@ -35,8 +87,10 @@ export default function VotacionesPageClient() {
         <VotacionFilter
           selectedResult={selectedResult}
           selectedYear={selectedYear}
-          onResultChange={setSelectedResult}
-          onYearChange={setSelectedYear}
+          searchQuery={searchQuery}
+          onResultChange={handleResultChange}
+          onYearChange={handleYearChange}
+          onSearchChange={handleSearchChange}
           possibleResults={[]}
           possibleYears={[]}
         />
@@ -88,7 +142,15 @@ export default function VotacionesPageClient() {
     const matchesResult = selectedResult === "TODOS" || votacion.resultado.toUpperCase() === selectedResult;
     const votacionYear = new Date(votacion.fecha).getFullYear().toString();
     const matchesYear = selectedYear === "TODOS" || votacionYear === selectedYear;
-    return matchesResult && matchesYear;
+    
+    // Search matching - check in title, project and other relevant fields
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = searchQuery === "" || 
+      votacion.titulo.toLowerCase().includes(searchLower) || 
+      votacion.proyecto.toLowerCase().includes(searchLower) ||
+      votacion.resultado.toLowerCase().includes(searchLower);
+    
+    return matchesResult && matchesYear && matchesSearch;
   });
 
   return (
@@ -97,26 +159,37 @@ export default function VotacionesPageClient() {
       <VotacionFilter
         selectedResult={selectedResult}
         selectedYear={selectedYear}
-        onResultChange={setSelectedResult}
-        onYearChange={setSelectedYear}
+        searchQuery={searchQuery}
+        onResultChange={handleResultChange}
+        onYearChange={handleYearChange}
+        onSearchChange={handleSearchChange}
         possibleResults={possibleResults}
         possibleYears={possibleYears}
       />
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredVotaciones.map((votacion) => (
-          <VotacionCard
-            key={votacion.actaId}
-            id={votacion.actaId.toString()}
-            proyecto={votacion.proyecto}
-            titulo={votacion.titulo}
-            fecha={votacion.fecha}
-            afirmativos={Number(votacion.afirmativos)}
-            negativos={Number(votacion.negativos)}
-            abstenciones={Number(votacion.abstenciones)}
-            resultado={votacion.resultado}
-          />
-        ))}
-      </div>
+      {filteredVotaciones.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+          <h2 className="text-2xl font-medium mb-2 text-gray-900 dark:text-gray-100">No se encontraron resultados</h2>
+          <p className="text-gray-600 dark:text-gray-400">
+            No se encontró ninguna votación. Por favor, intentá con diferentes criterios.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredVotaciones.map((votacion) => (
+            <VotacionCard
+              key={votacion.actaId}
+              id={votacion.actaId.toString()}
+              proyecto={votacion.proyecto}
+              titulo={votacion.titulo}
+              fecha={votacion.fecha}
+              afirmativos={Number(votacion.afirmativos)}
+              negativos={Number(votacion.negativos)}
+              abstenciones={Number(votacion.abstenciones)}
+              resultado={votacion.resultado}
+            />
+          ))}
+        </div>
+      )}
     </main>
   )
 }

@@ -2,11 +2,11 @@
 
 ## Descripción
 
-Este proyecto es una aplicación web que permite a los usuarios ver y evaluar las votaciones del Senado Argentino. Utiliza el api de argentinadatos para obtener los datos de las votaciones.
+Este proyecto es una aplicación web que permite a los usuarios ver y evaluar las votaciones del Senado Argentino. Utiliza la API de [ArgentinaDatos](https://argentinadatos.com) para obtener los datos de las votaciones.
 
 ## Sugerencias de mejora
 
-Si queres proponer una mejora podes hacerlo creando un issue en el repositorio.
+Si quieres proponer una mejora podes hacerlo creando un issue en el repositorio.
 
 ## Tecnologías utilizadas
 

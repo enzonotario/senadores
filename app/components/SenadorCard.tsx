@@ -91,7 +91,7 @@ export default function SenadorCard({
             {email}
           </div>
         )}
-        {telefono && (
+        {telefono && telefono != "(+54 11) 28223000" && ( // (+54 11) 28223000 es el teléfono de la Cámara de Senadores, no del senador
           <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
             <Phone size={16} className="mr-2 text-gray-500 dark:text-gray-400" />
             {telefono}

@@ -65,7 +65,7 @@ export function PaginationComponent({ currentPage, totalPages, onPageChange }: P
             disabled={currentPage <= 1}
           >
             <ChevronLeft className="h-4 w-4" />
-            <span className="hidden sm:inline ml-2">Previous</span>
+            <span className="hidden sm:inline ml-2">Anterior</span>
           </button>
         </PaginationItem>
         {getVisiblePages().map((page, index) => (
@@ -97,7 +97,7 @@ export function PaginationComponent({ currentPage, totalPages, onPageChange }: P
             }}
             disabled={currentPage >= totalPages}
           >
-            <span className="hidden sm:inline mr-2">Next</span>
+            <span className="hidden sm:inline mr-2">Siguiente</span>
             <ChevronRight className="h-4 w-4" />
           </button>
         </PaginationItem>

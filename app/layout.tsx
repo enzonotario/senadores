@@ -38,7 +38,8 @@ export const metadata: Metadata = {
     },
     description: 'Portal de transparencia y análisis de votaciones del Senado de la Nación Argentina',
     images: ['/meta-image.png'],
-  }
+  },
+  metadataBase: new URL('https://senadores.argentinadatos.com'),
 }
 
 export default function RootLayout({
