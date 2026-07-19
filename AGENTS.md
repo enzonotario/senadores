@@ -46,6 +46,7 @@ En Coolify:
 2. Dominios: `diputados.argentinadatos.com` y `senadores.argentinadatos.com` → mismo servicio.
 3. Env: `NUXT_REVALIDATE_SECRET`, `NUXT_PUBLIC_API_BASE_URL` (ver `.env.example`).
 4. Puerto `3000`. Healthcheck: `GET /api/health`.
+5. Si el build muere con **exit 137**: OOM en el servidor de build. Hace falta ≥2 GB RAM libres (o swap) en el host; el Dockerfile ya usa heap bajo (`1536`) y `DOCKER_BUILD=1` (sin minify Nitro).
 
 Cuando haya movimiento en las cámaras:
 

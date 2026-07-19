@@ -10,9 +10,11 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# Node SSR (Coolify / Docker). Más RAM en build por el bundle Nuxt.
+# Coolify builders suelen tener poca RAM: exit 137 = OOM killer.
+# No pedir 4GB de heap si el host tiene ~2GB.
 ENV NITRO_PRESET=node-server
-ENV NODE_OPTIONS=--max-old-space-size=4096
+ENV DOCKER_BUILD=1
+ENV NODE_OPTIONS=--max-old-space-size=1536
 RUN pnpm build
 
 # --- runtime ---
@@ -22,7 +24,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
-# Actas diputados ~64MB en RAM; dejá margen al proceso Node.
+# Actas diputados ~64MB en RAM; margen para el proceso.
 ENV NODE_OPTIONS=--max-old-space-size=1536
 
 COPY --from=build /app/.output ./.output

@@ -14,6 +14,8 @@ const revalidateSecret =
  * - Vercel: autodetect o `NITRO_PRESET=vercel`
  */
 const nitroPreset = process.env.NITRO_PRESET || "node-server";
+/** Build en Docker/Coolify: menos RAM peak (minify + rollup paralelo). */
+const dockerBuild = process.env.DOCKER_BUILD === "1";
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
@@ -23,8 +25,15 @@ export default defineNuxtConfig({
   ssr: true,
   nitro: {
     preset: nitroPreset,
-    compressPublicAssets: true,
-    minify: true,
+    compressPublicAssets: !dockerBuild,
+    minify: !dockerBuild,
+    ...(dockerBuild
+      ? {
+          rollupConfig: {
+            maxParallelFileOps: 1,
+          },
+        }
+      : {}),
     vercel: {
       config: {
         bypassToken: revalidateSecret || undefined,
