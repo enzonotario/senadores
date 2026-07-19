@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
 # --- build ---
+# En Coolify (poca RAM) NO builds acá: usá la imagen de GHCR (workflow docker-image).
+# Este Dockerfile está pensado para runners con ≥4–7 GB (GitHub Actions).
 FROM node:22-bookworm-slim AS build
 RUN corepack enable && corepack prepare pnpm@11.12.0 --activate
 WORKDIR /app
@@ -10,11 +12,10 @@ RUN pnpm install --frozen-lockfile
 
 COPY . .
 
-# Coolify builders suelen tener poca RAM: exit 137 = OOM killer.
-# No pedir 4GB de heap si el host tiene ~2GB.
+ARG NODE_MAX_OLD_SPACE_SIZE=6144
 ENV NITRO_PRESET=node-server
 ENV DOCKER_BUILD=1
-ENV NODE_OPTIONS=--max-old-space-size=1536
+ENV NODE_OPTIONS=--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE}
 RUN pnpm build
 
 # --- runtime ---
@@ -24,7 +25,6 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0
 ENV PORT=3000
-# Actas diputados ~64MB en RAM; margen para el proceso.
 ENV NODE_OPTIONS=--max-old-space-size=1536
 
 COPY --from=build /app/.output ./.output

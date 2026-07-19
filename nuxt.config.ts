@@ -25,6 +25,7 @@ export default defineNuxtConfig({
   ssr: true,
   nitro: {
     preset: nitroPreset,
+    sourceMap: false,
     compressPublicAssets: !dockerBuild,
     minify: !dockerBuild,
     ...(dockerBuild

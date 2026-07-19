@@ -34,19 +34,28 @@ Una sola app Node SSR. Ambos dominios apuntan al **mismo** servicio; la cámara 
 
 No hace falta SQLite/API intermedia por ahora: en un VPS con ≥2 GB RAM las actas (~64 MB diputados) viven en caches en memoria de `*-data.ts` tras el primer hit. Vercel/CF fallaban por **límites de plataforma**, no porque Node no pueda.
 
+### Importante: no buildear Nitro en el VPS chico
+
+El `nuxt build` / empaquetado Nitro pide **>1.5 GB de heap** (a veces ~3–4 GB peak). En Coolify eso termina en:
+
+- exit **137** → OOM killer del kernel
+- exit **134** → `JavaScript heap out of memory`
+
+**Solución:** build en GitHub Actions → imagen en GHCR → Coolify solo **pull**.
+
+1. Push a `feature/diputados-senadores` o `main` (workflow `.github/workflows/docker-image.yml`).
+2. En Coolify: recurso **Docker Image** (no Dockerfile build), imagen p.ej.  
+   `ghcr.io/<owner>/senadores:latest`  
+   (o `:feature-diputados-senadores` según el tag del workflow).
+3. Si el package es privado: login GHCR en Coolify (PAT con `read:packages`).
+4. Dominios `diputados.*` y `senadores.*` → mismo servicio. Puerto `3000`. Health: `GET /api/health`.
+5. Env: `NUXT_REVALIDATE_SECRET`, `NUXT_PUBLIC_API_BASE_URL` (ver `.env.example`).
+
 ```bash
-# Local
-docker build -t diputados-senadores .
+# Local (máquina con RAM suficiente)
+docker build --build-arg NODE_MAX_OLD_SPACE_SIZE=6144 -t diputados-senadores .
 docker run --rm -p 3000:3000 -e NUXT_REVALIDATE_SECRET=dev diputados-senadores
 ```
-
-En Coolify:
-
-1. Nuevo recurso → **Dockerfile** (raiz del repo).
-2. Dominios: `diputados.argentinadatos.com` y `senadores.argentinadatos.com` → mismo servicio.
-3. Env: `NUXT_REVALIDATE_SECRET`, `NUXT_PUBLIC_API_BASE_URL` (ver `.env.example`).
-4. Puerto `3000`. Healthcheck: `GET /api/health`.
-5. Si el build muere con **exit 137**: OOM en el servidor de build. Hace falta ≥2 GB RAM libres (o swap) en el host; el Dockerfile ya usa heap bajo (`1536`) y `DOCKER_BUILD=1` (sin minify Nitro).
 
 Cuando haya movimiento en las cámaras:
 
