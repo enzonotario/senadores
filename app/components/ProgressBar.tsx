@@ -13,7 +13,7 @@ export default function ProgressBar({ affirmative, negative, abstentions }: Prog
   const abstentionsPercentage = (abstentions / total) * 100
 
   return (
-    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+    <div className="w-full h-2 bg-gray-700 rounded-full overflow-hidden">
       <div className="h-full bg-green-500" style={{ width: `${affirmativePercentage}%`, float: "left" }} />
       <div className="h-full bg-red-500" style={{ width: `${negativePercentage}%`, float: "left" }} />
       <div className="h-full bg-yellow-500" style={{ width: `${abstentionsPercentage}%`, float: "left" }} />

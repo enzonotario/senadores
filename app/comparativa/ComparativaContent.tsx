@@ -65,14 +65,12 @@ export default function ComparativaContent() {
       }
     }
 
-    const senatorsList = senatorsData
-      .map((senator: SenatorData) => ({
-        name: senator.nombre,
-        imgUrl: senator.foto,
-        party: truncateText(senator.partido || "Sin partido"),
-        totalVotes: senatorVoteCounts[senator.nombre] || 0
-      }))
-      .filter(senator => senator.totalVotes > 0) // Solo incluir senadores con votos
+    const senatorsList = senatorsData.map((senator: SenatorData) => ({
+      name: senator.nombre,
+      imgUrl: senator.foto,
+      party: truncateText(senator.partido || "Sin partido"),
+      totalVotes: senatorVoteCounts[senator.nombre] || 0
+    }))
     setSenators(senatorsList)
   }, [senatorsData, votaciones])
 

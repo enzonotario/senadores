@@ -8,17 +8,13 @@ import { Skeleton } from "@/components/ui/skeleton"
 export default function HomeClient() {
   const { votaciones, isLoading, isError } = useVotaciones()
 
-  if (isError) return (
-    <div className="text-red-600 dark:text-red-400 container mx-auto px-4 py-12">
-      Error al cargar las votaciones
-    </div>
-  )
+  if (isError) return <div>Error al cargar las votaciones</div>
 
   return (
-    <main className="min-h-screen bg-white dark:bg-gray-900">
+    <main className="min-h-screen">
       <Hero />
       <div className="container mx-auto px-4 py-12">
-        <h2 className="text-3xl font-bold mb-8 text-gray-900 dark:text-gray-100" id="votaciones">
+        <h2 className="text-3xl font-bold mb-8" id="votaciones">
           Últimas Votaciones
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -41,7 +37,7 @@ export default function HomeClient() {
         <div className="text-center mt-12">
           <a
             href="/votaciones"
-            className="inline-flex items-center px-6 py-3 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition duration-300"
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded transition duration-300"
           >
             Ver todas las votaciones
           </a>

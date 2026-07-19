@@ -9,6 +9,32 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 
+// Helper function to parse date string into a consistent format
+const parseDate = (dateStr: string) => {
+  // If it's DD/MM/YYYY format
+  if (dateStr.includes('/')) {
+    const [day, month, year] = dateStr.split('/')
+    return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`)
+  }
+
+  // If it's already in YYYY-MM-DD format
+  if (dateStr.includes('-')) {
+    return new Date(dateStr)
+  }
+
+  // If all else fails, return invalid date
+  return new Date(0)
+}
+
+// Helper function to sort votaciones by date (newest first)
+const sortVotacionesByDate = (votaciones: any[]) => {
+  return [...votaciones].sort((a, b) => {
+    const dateA = parseDate(a.fecha)
+    const dateB = parseDate(b.fecha)
+    return dateB.getTime() - dateA.getTime()
+  })
+}
+
 export default function VotacionesPageClient() {
   const { votaciones, isLoading, isError } = useVotaciones()
   const router = useRouter()
@@ -74,7 +100,8 @@ export default function VotacionesPageClient() {
         .sort()
       setPossibleResults(uniqueResults)
 
-      const uniqueYears = Array.from(new Set(votaciones.map(v => new Date(v.fecha).getFullYear().toString())))
+      const uniqueYears = Array.from(new Set(votaciones.map(v => parseDate(v.fecha).getFullYear().toString())))
+        .filter(year => year !== "1970") // filter invalid dates
         .sort((a, b) => b.localeCompare(a)) // Sort years in descending order
       setPossibleYears(uniqueYears)
     }
@@ -138,20 +165,22 @@ export default function VotacionesPageClient() {
     )
   }
 
-  const filteredVotaciones = votaciones.filter((votacion) => {
-    const matchesResult = selectedResult === "TODOS" || votacion.resultado.toUpperCase() === selectedResult;
-    const votacionYear = new Date(votacion.fecha).getFullYear().toString();
-    const matchesYear = selectedYear === "TODOS" || votacionYear === selectedYear;
-    
-    // Search matching - check in title, project and other relevant fields
-    const searchLower = searchQuery.toLowerCase();
-    const matchesSearch = searchQuery === "" || 
-      votacion.titulo.toLowerCase().includes(searchLower) || 
-      votacion.proyecto.toLowerCase().includes(searchLower) ||
-      votacion.resultado.toLowerCase().includes(searchLower);
-    
-    return matchesResult && matchesYear && matchesSearch;
-  });
+  const filteredVotaciones = sortVotacionesByDate(
+    votaciones.filter((votacion) => {
+      const matchesResult = selectedResult === "TODOS" || votacion.resultado.toUpperCase() === selectedResult;
+      const votacionYear = parseDate(votacion.fecha).getFullYear().toString();
+      const matchesYear = selectedYear === "TODOS" || votacionYear === selectedYear;
+      
+      // Search matching - check in title, project and other relevant fields
+      const searchLower = searchQuery.toLowerCase();
+      const matchesSearch = searchQuery === "" || 
+        votacion.titulo.toLowerCase().includes(searchLower) || 
+        votacion.proyecto.toLowerCase().includes(searchLower) ||
+        votacion.resultado.toLowerCase().includes(searchLower);
+      
+      return matchesResult && matchesYear && matchesSearch;
+    })
+  );
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -193,4 +222,3 @@ export default function VotacionesPageClient() {
     </main>
   )
 }
-

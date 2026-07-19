@@ -48,29 +48,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <head>
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                document.documentElement.classList.add('dark')
-              } else {
-                document.documentElement.classList.remove('dark')
-              }
-              window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
-                if (e.matches) {
-                  document.documentElement.classList.add('dark')
-                } else {
-                  document.documentElement.classList.remove('dark')
-                }
-              })
-            `,
-          }}
-        />
-        <script src="https://analytics.ahrefs.com/analytics.js" data-key="LquyoZN88/aR4X9qjbh6zQ" async />
-      </head>
-      <body className={`${inter.className} min-h-screen flex flex-col bg-background text-foreground`}>
+    <html lang="es" className="dark">
+      <body className={`${inter.className} bg-gray-900 text-gray-100 min-h-screen flex flex-col`}>
         <Navigation />
         <main className="flex-1">
           {children}
