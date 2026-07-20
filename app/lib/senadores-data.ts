@@ -5,6 +5,10 @@ import {
   isSenadorActivo,
   parseNombreSenador,
 } from "@/lib/utils";
+import {
+  getSenadoresAliasMap,
+  votoCoincideConSenador,
+} from "@/lib/matchSenadorNombre";
 import { averagePresentismo } from "@/utils/presentismo";
 import { normalizeResultado, normalizeVotoTipo } from "@/utils/votoTipo";
 
@@ -39,6 +43,17 @@ export function clearSenadoresDataCache() {
   _senadores = null;
   _actas = null;
   _senadoresConActas = null;
+}
+
+function votoMatchesSenador(voto: Voto, senador: Senador): boolean {
+  return votoCoincideConSenador({
+    votoNombre: voto.senador || "",
+    votoSlug: voto.senadorSlug || "",
+    senadorId: senador.id,
+    senadorNombre: senador.nombre || senador.nombreCompleto || "",
+    senadorSlug: senador.nombreSlug || "",
+    aliasMap: getSenadoresAliasMap(),
+  });
 }
 
 function maxByPeriod(a: any, b: any) {
@@ -152,11 +167,11 @@ export async function getSenadoresConActas(): Promise<Senador[]> {
   _senadoresConActas = senadores.map((senador) => {
     const actasSenador = actas
       .filter((acta) =>
-        acta.votos.some((v) => v.senadorSlug === senador.nombreSlug),
+        acta.votos.some((v) => votoMatchesSenador(v, senador)),
       )
       .map((acta) => {
-        const votoSenador = acta.votos.find(
-          (v) => v.senadorSlug === senador.nombreSlug,
+        const votoSenador = acta.votos.find((v) =>
+          votoMatchesSenador(v, senador),
         );
         return {
           id: acta.id,
@@ -230,7 +245,7 @@ export async function getActaWithSenadoresById(
   return {
     ...actaById,
     votos: actaById.votos.map((v) => {
-      const matched = senadores.find((s) => s.nombreSlug === v.senadorSlug);
+      const matched = senadores.find((s) => votoMatchesSenador(v, s));
       const parsed = parseNombreSenador(v.senador);
 
       return {

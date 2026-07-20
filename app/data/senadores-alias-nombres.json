@@ -1,0 +1,30 @@
+{
+  "_comment": "Mapeo nombre-en-acta → id de senador. Editá `manual` para overrides permanentes; `auto` son casos ya detectados (tildes, 2º nombre, apellidos acortados).",
+  "manual": {},
+  "auto": {
+    "Royón, Flavia": "593",
+    "Alvarez Rivero, Carmen Silvia": "522",
+    "Pilatti Vergara, María Inés P. E.": "435",
+    "Ledesma, Claudia Alejandra": "509",
+    "Olalla de Moreira, Stella Maris": "503",
+    "Rodas, Antonio": "500",
+    "Blas, Ines I.": "427",
+    "Cobos, Julio": "466",
+    "Verasay, Pamela": "467",
+    "Fiore Viñuales, María C. del Valle": "444",
+    "Iturrez de Cappellini, Ada Rosa": "389",
+    "Bullrich, Esteban": "478",
+    "Closs, Maurice": "359",
+    "Costa, Eduardo": "490",
+    "Fiad, Mario R.": "480",
+    "González, Gladys": "494",
+    "López Valverde, Cristina": "487",
+    "Poggi, Claudio": "489",
+    "Schiavoni, Humberto": "485",
+    "Fernández de Kirchner, Cristina": "212",
+    "Giménez, Sandra D.": "421",
+    "Luna, Mirtha M. T.": "420",
+    "De la Rosa, Maria G.": "417",
+    "Weretilneck, Alberto": "506"
+  }
+}
