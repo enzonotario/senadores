@@ -1,9 +1,12 @@
 import type { ChamberId } from "./chamber";
 
+/** Barra lateral / badge por defecto (sin color de resultado). */
+export const OG_BAR_ACCENT = "#232D4F";
+
 /** Color de marca OG (barra cuando no hay resultado). */
 export const OG_CHAMBER_ACCENT: Record<ChamberId, string> = {
-  diputados: "#111111",
-  senadores: "#111111",
+  diputados: OG_BAR_ACCENT,
+  senadores: OG_BAR_ACCENT,
 };
 
 /** Colores por resultado de acta. */
@@ -37,6 +40,11 @@ export type ChamberOgInput = {
   abstenciones?: number;
   /** Foto/avatar del miembro (URL absoluta o path público). */
   photoSrc?: string;
+  /**
+   * Hemiciclo compacto para homes/listados:
+   * `45:14b8a6,30:ef4444` (count:hex sin #).
+   */
+  hemiciclo?: string;
 };
 
 /** Serializa conteos para props OG (`46:25:1`). */

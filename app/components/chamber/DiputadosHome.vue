@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { getActas, getDiputadosPorBloques } from "@/lib/diputados-data";
-
-useChamberSeo({
-  title: "Cómo votan los diputados",
-  description:
-    "Mirá cómo votaron los diputados en cada proyecto de ley de la Cámara.",
-  og: { kind: "home", eyebrow: "diputados" },
-});
+import {
+  encodeOgHemiciclo,
+  groupsForOgHemiciclo,
+} from "@/lib/hemiciclo-layout";
 
 const { data: bloquesData } = await useAsyncData("diputados-por-bloques", () =>
   getDiputadosPorBloques(),
@@ -18,6 +15,23 @@ const { data: actasData } = await useAsyncData("diputados-actas-home", () =>
 
 const diputados = computed(() => bloquesData.value?.diputados || []);
 const bloqueColores = computed(() => bloquesData.value?.bloqueColores || {});
+
+useChamberSeo(() => {
+  const groups = groupsForOgHemiciclo(
+    diputados.value.map((d) => ({ group: d.bloque })),
+    bloqueColores.value,
+  );
+  return {
+    title: "Cómo votan los diputados",
+    description:
+      "Mirá cómo votaron los diputados en cada proyecto de ley de la Cámara.",
+    og: {
+      kind: "home",
+      eyebrow: "diputados",
+      hemiciclo: encodeOgHemiciclo(groups),
+    },
+  };
+});
 
 const actasRecientes = computed(() => {
   const actas = [...(actasData.value || [])];

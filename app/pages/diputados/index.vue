@@ -3,6 +3,10 @@ import { useRouteQuery } from "@vueuse/router";
 import type { Diputado, FilterConfig } from "@/lib/types-diputados";
 import { getBloqueColores, getDiputadosConActas } from "@/lib/diputados-data";
 import {
+  encodeOgHemiciclo,
+  groupsForOgHemiciclo,
+} from "@/lib/hemiciclo-layout";
+import {
   filterDiputados,
   formatDate,
   getUniqueValues,
@@ -11,13 +15,6 @@ import {
 import { sortableHeader } from "@/utils/sortableHeader";
 import { groupDiputadosBy } from "@/utils/groupDiputadosBy";
 import { bloquePath } from "@/utils/bloque";
-
-useChamberSeo({
-  title: "Diputados",
-  description:
-    "Conocé a los diputados de la Cámara de Diputados de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
-  og: { kind: "list", eyebrow: "listado", badge: "Diputados" },
-});
 
 const { sorting } = useTableSorting("presentismo", true);
 const vista = useRouteQuery("vista", "lista");
@@ -89,6 +86,32 @@ const groupsByProvincia = computed(() =>
 const bloqueColores = computed(() =>
   getBloqueColores(groupsByBloque.value.map((g) => g.key)),
 );
+
+useChamberSeo(() => {
+  const activosAll = diputados.value.filter(isDiputadoActivo);
+  const colores = getBloqueColores(
+    [
+      ...new Set(
+        activosAll.map((d) => d.bloque).filter(Boolean) as string[],
+      ),
+    ],
+  );
+  const groups = groupsForOgHemiciclo(
+    activosAll.map((d) => ({ group: d.bloque })),
+    colores,
+  );
+  return {
+    title: "Diputados",
+    description:
+      "Conocé a los diputados de la Cámara de Diputados de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
+    og: {
+      kind: "list",
+      eyebrow: "listado",
+      badge: "Diputados",
+      hemiciclo: encodeOgHemiciclo(groups),
+    },
+  };
+});
 
 const provincias = computed(() =>
   getUniqueValues(diputados.value, "provincia"),

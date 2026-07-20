@@ -71,5 +71,6 @@ export function useChamberSeo(input: MaybeRefOrGetter<ChamberSeoInput>) {
     footerLeft: computed(() => seo.value.og?.footerLeft || ""),
     votes: computed(() => encodeOgVotes(seo.value.og)),
     photoSrc: computed(() => seo.value.og?.photoSrc || ""),
+    hemiciclo: computed(() => seo.value.og?.hemiciclo || ""),
   });
 }

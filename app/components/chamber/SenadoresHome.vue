@@ -1,12 +1,9 @@
 <script setup lang="ts">
 import { getActas, getSenadoresPorPartidos } from "@/lib/senadores-data";
-
-useChamberSeo({
-  title: "Cómo votan los senadores",
-  description:
-    "Mirá cómo votaron los senadores en cada proyecto de ley del Senado.",
-  og: { kind: "home", eyebrow: "senadores" },
-});
+import {
+  encodeOgHemiciclo,
+  groupsForOgHemiciclo,
+} from "@/lib/hemiciclo-layout";
 
 const { data: partidosData } = await useAsyncData("senadores-por-partidos", () =>
   getSenadoresPorPartidos(),
@@ -16,6 +13,23 @@ const { data: actasData } = await useAsyncData("actas", () => getActas());
 
 const senadores = computed(() => partidosData.value?.senadores || []);
 const partidoColores = computed(() => partidosData.value?.partidoColores || {});
+
+useChamberSeo(() => {
+  const groups = groupsForOgHemiciclo(
+    senadores.value.map((s) => ({ group: s.partido })),
+    partidoColores.value,
+  );
+  return {
+    title: "Cómo votan los senadores",
+    description:
+      "Mirá cómo votaron los senadores en cada proyecto de ley del Senado.",
+    og: {
+      kind: "home",
+      eyebrow: "senadores",
+      hemiciclo: encodeOgHemiciclo(groups),
+    },
+  };
+});
 
 const actasRecientes = computed(() => {
   const actas = [...(actasData.value || [])];

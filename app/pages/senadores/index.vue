@@ -3,6 +3,10 @@ import { useRouteQuery } from "@vueuse/router";
 import type { Senador, FilterConfig } from "@/lib/types";
 import { getPartidoColores, getSenadoresConActas } from "@/lib/senadores-data";
 import {
+  encodeOgHemiciclo,
+  groupsForOgHemiciclo,
+} from "@/lib/hemiciclo-layout";
+import {
   filterSenadores,
   formatDate,
   getUniqueValues,
@@ -11,13 +15,6 @@ import {
 import { sortableHeader } from "@/utils/sortableHeader";
 import { groupSenadoresBy } from "@/utils/groupSenadoresBy";
 import { partidoPath } from "@/utils/partido";
-
-useChamberSeo({
-  title: "Senadores",
-  description:
-    "Conocé a los senadores del Senado de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
-  og: { kind: "list", eyebrow: "listado", badge: "Senadores" },
-});
 
 const { sorting } = useTableSorting("presentismo", true);
 const vista = useRouteQuery("vista", "lista");
@@ -87,6 +84,32 @@ const groupsByProvincia = computed(() =>
 const partidoColores = computed(() =>
   getPartidoColores(groupsByPartido.value.map((g) => g.key)),
 );
+
+useChamberSeo(() => {
+  const activosAll = senadores.value.filter(isSenadorActivo);
+  const colores = getPartidoColores(
+    [
+      ...new Set(
+        activosAll.map((s) => s.partido).filter(Boolean) as string[],
+      ),
+    ],
+  );
+  const groups = groupsForOgHemiciclo(
+    activosAll.map((s) => ({ group: s.partido })),
+    colores,
+  );
+  return {
+    title: "Senadores",
+    description:
+      "Conocé a los senadores del Senado de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
+    og: {
+      kind: "list",
+      eyebrow: "listado",
+      badge: "Senadores",
+      hemiciclo: encodeOgHemiciclo(groups),
+    },
+  };
+});
 
 const provincias = computed(() =>
   getUniqueValues(senadores.value, "provincia"),

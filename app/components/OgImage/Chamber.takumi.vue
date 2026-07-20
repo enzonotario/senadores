@@ -3,9 +3,15 @@
  * Template OG Takumi — Nuxt OG Image (ver https://takumi.kane.tw/docs/integration/nuxt).
  * Props vía defineOgImage('Chamber.takumi', { ... }).
  *
- * `votes` es un string `afirmativos:negativos:abstenciones` (más fiable que
- * números sueltos en el encoding de la URL del island).
+ * `votes` es un string `afirmativos:negativos:abstenciones`.
+ * `hemiciclo` es `45:14b8a6,30:ef4444` (grupos count:hex).
  */
+import {
+  decodeOgHemiciclo,
+  layoutOgHemiciclo,
+} from "@/lib/hemiciclo-layout";
+import { OG_BAR_ACCENT } from "@/lib/og";
+
 const props = withDefaults(
   defineProps<{
     title?: string;
@@ -23,6 +29,8 @@ const props = withDefaults(
     votes?: string;
     /** Foto del miembro (URL absoluta preferible). */
     photoSrc?: string;
+    /** Hemiciclo compacto `45:14b8a6,30:ef4444`. */
+    hemiciclo?: string;
   }>(),
   {
     title: "Argentina Datos",
@@ -31,10 +39,11 @@ const props = withDefaults(
     logoSrc: "",
     eyebrow: "",
     badge: "",
-    accent: "#111111",
+    accent: OG_BAR_ACCENT,
     footerLeft: "",
     votes: "",
     photoSrc: "",
+    hemiciclo: "",
   },
 );
 
@@ -58,6 +67,14 @@ const resolvedLogo = computed(() => {
 });
 
 const resolvedPhoto = computed(() => (props.photoSrc || "").trim());
+
+const hemicicloLayout = computed(() => {
+  const groups = decodeOgHemiciclo(props.hemiciclo);
+  if (!groups.length) return null;
+  return layoutOgHemiciclo(groups);
+});
+
+const showHemiciclo = computed(() => Boolean(hemicicloLayout.value?.seats.length));
 
 const voteRows = computed(() => {
   const raw = String(props.votes || "").trim();
@@ -107,8 +124,8 @@ const showVotes = computed(() => voteRows.value.length > 0);
     <div
       class="relative flex h-full w-full flex-col justify-between px-16 py-10 pl-[4.25rem]"
     >
-      <!-- Arriba: header + título (queda arriba, no empuja al footer) -->
-      <div class="flex w-full flex-col gap-8">
+      <!-- Arriba: header + título -->
+      <div class="flex w-full flex-col gap-6">
         <div class="flex w-full items-center justify-between">
           <div class="flex items-center gap-5">
             <img
@@ -136,15 +153,17 @@ const showVotes = computed(() => voteRows.value.length > 0);
         </div>
 
         <div
-          class="flex w-full items-start gap-12"
-          :class="resolvedPhoto ? 'justify-between' : ''"
+          class="flex w-full items-start gap-10"
+          :class="resolvedPhoto || showHemiciclo ? 'justify-between' : ''"
         >
           <div
-            class="flex min-w-0 flex-col gap-5"
-            :class="resolvedPhoto ? 'max-w-[720px]' : 'max-w-[1020px]'"
+            class="flex min-w-0 flex-col gap-4"
+            :class="
+              resolvedPhoto || showHemiciclo ? 'max-w-[520px]' : 'max-w-[1020px]'
+            "
           >
             <div
-              class="text-[52px] font-extrabold leading-[1.12] tracking-tight"
+              class="text-[48px] font-extrabold leading-[1.12] tracking-tight"
               :style="{ color: INK }"
             >
               {{ title }}
@@ -152,7 +171,7 @@ const showVotes = computed(() => voteRows.value.length > 0);
 
             <div
               v-if="!showVotes && description"
-              class="text-[28px] font-medium leading-snug"
+              class="text-[24px] font-medium leading-snug"
               :style="{ color: `${INK}b3` }"
             >
               {{ description }}
@@ -171,10 +190,32 @@ const showVotes = computed(() => voteRows.value.length > 0);
               boxShadow: `0 18px 40px ${INK}26`,
             }"
           />
+
+          <div
+            v-else-if="hemicicloLayout"
+            class="relative shrink-0"
+            :style="{
+              width: `${hemicicloLayout.width}px`,
+              height: `${hemicicloLayout.height}px`,
+            }"
+          >
+            <div
+              v-for="(seat, i) in hemicicloLayout.seats"
+              :key="i"
+              class="absolute rounded-full"
+              :style="{
+                left: `${seat.x - seat.r}px`,
+                top: `${seat.y - seat.r}px`,
+                width: `${seat.r * 2}px`,
+                height: `${seat.r * 2}px`,
+                backgroundColor: seat.color,
+              }"
+            />
+          </div>
         </div>
       </div>
 
-      <!-- Abajo: votos (si hay) + footer, sin solaparse -->
+      <!-- Abajo: votos (si hay) + footer -->
       <div class="flex w-full flex-col gap-7">
         <div v-if="showVotes" class="flex items-end gap-10">
           <div
