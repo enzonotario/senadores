@@ -16,6 +16,7 @@ useChamberSeo({
   title: "Votaciones",
   description:
     "Mirá las votaciones del Senado de la Nación Argentina y cómo votó cada uno.",
+  og: { kind: "list", eyebrow: "actas", badge: "Votaciones" },
 });
 
 const { sorting } = useTableSorting("fecha", true);

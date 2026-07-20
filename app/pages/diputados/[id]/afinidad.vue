@@ -82,11 +82,17 @@ useChamberSeo(() => {
     return {
       title: "Con quién vota parecido",
       description: "Quién vota parecido a quién en Diputados.",
+      og: { kind: "afinidad", eyebrow: "afinidad" },
     };
   }
   return {
     title: `Con quién vota parecido · ${memberName.value}`,
     description: `Con quién coincide ${memberName.value}, con quién no, y cuántas veces se apartó de su bloque.`,
+    og: {
+      kind: "afinidad",
+      eyebrow: "afinidad",
+      badge: diputado.value.bloque || undefined,
+    },
   };
 });
 </script>

@@ -5,6 +5,7 @@ useChamberSeo({
   title: "Cómo votan los senadores",
   description:
     "Mirá cómo votaron los senadores en cada proyecto de ley del Senado.",
+  og: { kind: "home", eyebrow: "senadores" },
 });
 
 const { data: partidosData } = await useAsyncData("senadores-por-partidos", () =>

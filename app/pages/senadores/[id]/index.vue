@@ -67,6 +67,7 @@ useChamberSeo(() => {
     return {
       title: "Senador",
       description: "Perfil de un senador del Senado de la Nación Argentina.",
+      og: { kind: "member", eyebrow: "senador" },
     };
   }
   const name = s.nombreCompleto || s.nombre;
@@ -76,6 +77,12 @@ useChamberSeo(() => {
     description: bits.length
       ? `${name} (${bits.join(" · ")}). Historial de votos, presentismo y afinidad en el Senado.`
       : `${name}. Historial de votos, presentismo y afinidad en el Senado.`,
+    og: {
+      kind: "member",
+      eyebrow: "senador",
+      badge: s.partido || undefined,
+      photoSrc: s.foto || "/placeholder-user.jpg",
+    },
   };
 });
 

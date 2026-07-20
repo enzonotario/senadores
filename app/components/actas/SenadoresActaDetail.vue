@@ -11,6 +11,7 @@ import {
   VOTO_TIPO_ORDER,
 } from "@/utils/votoTipo";
 import { partidoPath } from "@/utils/partido";
+import { resultadoBadgeLabel } from "@/lib/og";
 
 const route = useRoute();
 const id = computed(() => String(route.params.id));
@@ -28,18 +29,30 @@ useChamberSeo(() => {
     return {
       title: "Votación",
       description: "Cómo se votó esta iniciativa en el Senado.",
+      og: { kind: "acta", eyebrow: "votación" },
     };
   }
   const fecha = a.fecha ? formatDate(a.fecha) : null;
   const parts = [
     a.resultado ? `Resultado: ${a.resultado}` : null,
     fecha ? `Votación del ${fecha}` : null,
+    `A favor ${a.votosAfirmativos}, en contra ${a.votosNegativos}, abstenciones ${a.abstenciones}`,
   ].filter(Boolean);
   return {
     title: a.titulo || "Votación",
     description: parts.length
-      ? `${parts.join(". ")}. Cómo votó cada senador.`
+      ? `${parts.join(". ")}.`
       : "Cómo se votó esta iniciativa en el Senado.",
+    og: {
+      kind: "acta",
+      eyebrow: "votación",
+      badge: resultadoBadgeLabel(a.resultado),
+      accent: a.resultado || undefined,
+      footerLeft: fecha || "",
+      votosAfirmativos: a.votosAfirmativos ?? 0,
+      votosNegativos: a.votosNegativos ?? 0,
+      abstenciones: a.abstenciones ?? 0,
+    },
   };
 });
 

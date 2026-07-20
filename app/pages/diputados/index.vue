@@ -16,6 +16,7 @@ useChamberSeo({
   title: "Diputados",
   description:
     "Conocé a los diputados de la Cámara de Diputados de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
+  og: { kind: "list", eyebrow: "listado", badge: "Diputados" },
 });
 
 const { sorting } = useTableSorting("presentismo", true);

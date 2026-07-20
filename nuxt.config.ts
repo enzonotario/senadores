@@ -62,6 +62,7 @@ export default defineNuxtConfig({
     "@vueuse/nuxt",
     "@nuxt/image",
     "@nuxtjs/sitemap",
+    "nuxt-og-image",
     "@nuxt/eslint",
     "nuxt-gtag",
     "nuxt-echarts",
@@ -99,6 +100,16 @@ export default defineNuxtConfig({
     url: chamberSite.siteUrl,
     name: chamberSite.siteName,
     description: chamberSite.siteDescription,
+  },
+
+  // Takumi renderer: components/**/*.takumi.vue
+  // @see https://takumi.kane.tw/docs/integration/nuxt
+  ogImage: {
+    defaults: {
+      width: 1200,
+      height: 630,
+      // Embebido en meta; absolute URL vía site.url / request origin.
+    },
   },
 
   ui: {

@@ -5,6 +5,7 @@ useChamberSeo({
   title: "Cómo votan los diputados",
   description:
     "Mirá cómo votaron los diputados en cada proyecto de ley de la Cámara.",
+  og: { kind: "home", eyebrow: "diputados" },
 });
 
 const { data: bloquesData } = await useAsyncData("diputados-por-bloques", () =>

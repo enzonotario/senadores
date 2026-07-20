@@ -16,6 +16,7 @@ useChamberSeo({
   title: "Senadores",
   description:
     "Conocé a los senadores del Senado de la Nación Argentina. Historial de votos, presentismo y con quién coinciden.",
+  og: { kind: "list", eyebrow: "listado", badge: "Senadores" },
 });
 
 const { sorting } = useTableSorting("presentismo", true);

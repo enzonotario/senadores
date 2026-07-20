@@ -166,12 +166,14 @@ useChamberSeo(() => {
       title: "Bloque",
       description:
         "Bloques de la Cámara de Diputados de la Nación Argentina.",
+      og: { kind: "group", eyebrow: "bloque" },
     };
   }
   if (isAfinidad) {
     return {
       title: `Cómo votan juntos · ${name}`,
       description: `Qué tan unidos votan en ${name} y con qué otros bloques coinciden.`,
+      og: { kind: "afinidad", eyebrow: "afinidad", badge: name },
     };
   }
   const n = bloque.value?.activos?.length;
@@ -181,6 +183,14 @@ useChamberSeo(() => {
       n != null
         ? `Bloque ${name}: ${n} diputados activos. Integrantes, presentismo y votos en la Cámara de Diputados.`
         : `Diputados del bloque ${name} en la Cámara de Diputados de la Nación Argentina.`,
+    og: {
+      kind: "group",
+      eyebrow: "bloque",
+      badge:
+        n != null
+          ? `${n} ${n === 1 ? "diputado" : "diputados"}`
+          : undefined,
+    },
   };
 });
 </script>

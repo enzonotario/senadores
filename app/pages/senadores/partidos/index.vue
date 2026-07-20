@@ -64,6 +64,7 @@ useChamberSeo({
   title: "Partidos",
   description:
     "Explorá los partidos políticos activos del Senado, quiénes los integran y cuánto asisten a votar.",
+  og: { kind: "list", eyebrow: "partidos", badge: "Partidos" },
 });
 </script>
 

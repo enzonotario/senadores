@@ -160,12 +160,14 @@ useChamberSeo(() => {
     return {
       title: "Partido",
       description: "Partidos del Senado de la Nación Argentina.",
+      og: { kind: "group", eyebrow: "partido" },
     };
   }
   if (isAfinidad) {
     return {
       title: `Cómo votan juntos · ${name}`,
       description: `Qué tan unidos votan en ${name} y con qué otros partidos coinciden.`,
+      og: { kind: "afinidad", eyebrow: "afinidad", badge: name },
     };
   }
   const n = partido.value?.activos?.length;
@@ -175,6 +177,14 @@ useChamberSeo(() => {
       n != null
         ? `Partido ${name}: ${n} senadores activos. Integrantes, presentismo y votos en el Senado.`
         : `Senadores del partido ${name} en el Senado de la Nación Argentina.`,
+    og: {
+      kind: "group",
+      eyebrow: "partido",
+      badge:
+        n != null
+          ? `${n} ${n === 1 ? "senador" : "senadores"}`
+          : undefined,
+    },
   };
 });
 </script>

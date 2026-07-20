@@ -61,6 +61,7 @@ useChamberSeo(() => {
       title: "Diputado",
       description:
         "Perfil de un diputado de la Cámara de Diputados de la Nación Argentina.",
+      og: { kind: "member", eyebrow: "diputado" },
     };
   }
   const name = `${d.nombre} ${d.apellido}`.trim();
@@ -70,6 +71,12 @@ useChamberSeo(() => {
     description: bits.length
       ? `${name} (${bits.join(" · ")}). Historial de votos, presentismo y afinidad en la Cámara de Diputados.`
       : `${name}. Historial de votos, presentismo y afinidad en la Cámara de Diputados.`,
+    og: {
+      kind: "member",
+      eyebrow: "diputado",
+      badge: d.bloque || undefined,
+      photoSrc: d.foto || "/placeholder-user.jpg",
+    },
   };
 });
 
