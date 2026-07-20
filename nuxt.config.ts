@@ -104,6 +104,8 @@ export default defineNuxtConfig({
 
   // Takumi renderer: components/**/*.takumi.vue
   // @see https://takumi.kane.tw/docs/integration/nuxt
+  // Node/Docker: el optionalDependency nativo no entra en .output (ver Dockerfile.build).
+  // Cloudflare: nuxt-og-image elige wasm solo; @takumi-rs/wasm está en dependencies.
   ogImage: {
     defaults: {
       width: 1200,

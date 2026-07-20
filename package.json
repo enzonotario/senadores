@@ -27,6 +27,7 @@
     "@nuxtjs/tailwindcss": "^6.14.0",
     "@pinia/nuxt": "^0.11.3",
     "@takumi-rs/core": "^2.3.0",
+    "@takumi-rs/wasm": "^2.3.0",
     "@vueuse/nuxt": "^14.3.0",
     "@vueuse/router": "^14.3.0",
     "echarts": "^6.1.0",
@@ -38,7 +39,8 @@
     "slugify": "^1.6.9",
     "vue": "^3.5.39",
     "vue-echarts": "^8.0.1",
-    "vue-router": "^5.1.0"
+    "vue-router": "^5.1.0",
+    "@takumi-rs/core-linux-x64-gnu": "^2.3.0"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.116",
