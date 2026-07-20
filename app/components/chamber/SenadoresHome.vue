@@ -25,7 +25,7 @@ useChamberSeo(() => {
   return {
     title: "Cómo votan los senadores",
     description:
-      "Mirá cómo votaron los senadores en cada proyecto de ley del Senado.",
+      "Actas, hemiciclo y perfiles: mirá cómo votó cada senador en cada proyecto de ley del Senado de la Nación.",
     og: {
       kind: "home",
       eyebrow: "senadores",

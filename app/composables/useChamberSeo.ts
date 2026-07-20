@@ -21,19 +21,40 @@ export type ChamberSeoInput = {
  *
  * Importante: no pasar un getter a `useSeoMeta(() => …)` — Unhead 2 destruye
  * el argumento y `title` queda undefined.
+ *
+ * X/Twitter: la tarjeta Takumi ya lleva título/descripción en la imagen.
+ * X pinta `og:title` encima → usamos ZWSP en og/twitter title para que la
+ * card se vea como imagen, no como banner con texto duplicado.
  */
+const OG_TITLE_ZWSP = "\u200B";
+
 export function useChamberSeo(input: MaybeRefOrGetter<ChamberSeoInput>) {
   const { chamber } = useChamber();
+  const requestURL = useRequestURL();
 
   const seo = computed(() => {
     const value = toValue(input);
     const pageTitle = (value.title || "").trim() || chamber.value.siteName;
+    const description = (value.description || "").trim();
     return {
       pageTitle,
       fullTitle: `${pageTitle} | ${chamber.value.siteHost}`,
-      description: value.description,
+      description,
+      imageAlt: description
+        ? `${pageTitle} — ${description}`
+        : pageTitle,
       og: value.og,
     };
+  });
+
+  const pageUrl = computed(() => {
+    // Host canónico de la cámara (prod); path del request actual.
+    try {
+      return new URL(requestURL.pathname + requestURL.search, chamber.value.siteUrl)
+        .href;
+    } catch {
+      return chamber.value.siteUrl;
+    }
   });
 
   useHead(() => ({
@@ -41,11 +62,18 @@ export function useChamberSeo(input: MaybeRefOrGetter<ChamberSeoInput>) {
     titleTemplate: "%s",
     meta: [
       { name: "description", content: seo.value.description },
-      { property: "og:title", content: seo.value.fullTitle },
+      // Open Graph: título invisible (imagen lleva el copy); description sí.
+      { property: "og:title", content: OG_TITLE_ZWSP },
       { property: "og:description", content: seo.value.description },
+      { property: "og:url", content: pageUrl.value },
+      { property: "og:image:alt", content: seo.value.imageAlt },
+      // X / Twitter
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: seo.value.fullTitle },
+      { name: "twitter:site", content: "@enzonotario_" },
+      { name: "twitter:creator", content: "@enzonotario_" },
+      { name: "twitter:title", content: OG_TITLE_ZWSP },
       { name: "twitter:description", content: seo.value.description },
+      { name: "twitter:image:alt", content: seo.value.imageAlt },
     ],
   }));
 

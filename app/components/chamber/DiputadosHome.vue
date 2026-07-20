@@ -25,7 +25,7 @@ useChamberSeo(() => {
   return {
     title: "Cómo votan los diputados",
     description:
-      "Mirá cómo votaron los diputados en cada proyecto de ley de la Cámara.",
+      "Actas, hemiciclo y perfiles: mirá cómo votó cada diputado en cada proyecto de ley de la Cámara de Diputados.",
     og: {
       kind: "home",
       eyebrow: "diputados",

@@ -33,7 +33,7 @@ export const CHAMBERS: Record<ChamberId, ChamberConfig> = {
     siteUrl: "https://diputados.argentinadatos.com",
     siteName: "Cómo votan los diputados",
     siteDescription:
-      "Mirá cómo votan los diputados de la Cámara de Diputados de la Nación Argentina.",
+      "Actas, hemiciclo y perfiles: mirá cómo votó cada diputado en cada proyecto de ley de la Cámara de Diputados.",
     keywords:
       "diputados, cámara de diputados, votaciones, actas, argentina, bloques",
     brand: "diputados",
@@ -55,7 +55,7 @@ export const CHAMBERS: Record<ChamberId, ChamberConfig> = {
     siteUrl: "https://senadores.argentinadatos.com",
     siteName: "Cómo votan los senadores",
     siteDescription:
-      "Mirá cómo votan los senadores del Senado de la Nación Argentina.",
+      "Actas, hemiciclo y perfiles: mirá cómo votó cada senador en cada proyecto de ley del Senado de la Nación.",
     keywords:
       "senadores, senado, votaciones, actas, argentina, partidos políticos",
     brand: "senadores",

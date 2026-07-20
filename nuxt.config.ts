@@ -202,6 +202,7 @@ export default defineNuxtConfig({
         { property: "og:type", content: "website" },
         { property: "og:locale", content: "es_AR" },
         { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:site", content: "@enzonotario_" },
         { name: "twitter:creator", content: "@enzonotario_" },
       ],
       link: [
