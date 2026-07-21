@@ -1,33 +1,47 @@
 import { CHAMBERS, type ChamberId } from "./app/lib/chamber";
+import {
+  ACTAS_SSG_YEARS,
+  collectChamberPrerenderRoutes,
+} from "./app/lib/prerender-manifest";
 
 const defaultChamber: ChamberId =
   (process.env.NUXT_PUBLIC_DEFAULT_CHAMBER as ChamberId) || "senadores";
 const chamberSite = CHAMBERS[defaultChamber];
 
-const revalidateSecret =
-  process.env.NUXT_REVALIDATE_SECRET || process.env.VERCEL_BYPASS_TOKEN || "";
+const revalidateSecret = process.env.NUXT_REVALIDATE_SECRET || "";
 
 /**
- * Preset:
- * - Coolify/Docker: `node-server` (default si no hay NITRO_PRESET)
- * - Cloudflare: `NITRO_PRESET=cloudflare_module`
- * - Vercel: autodetect o `NITRO_PRESET=vercel`
+ * Nitro `node-server` (Coolify / Docker).
+ * Hybrid SSG: dos imágenes/servicios (DEFAULT_CHAMBER=diputados|senadores).
+ * Índices + activos + actas ≤4a → prerender; resto SSR + Cache-Control largo.
+ * En Docker (`DOCKER_BUILD=1`): menos RAM peak (minify + rollup paralelo).
  */
-const nitroPreset = process.env.NITRO_PRESET || "node-server";
-/** Build en Docker/Coolify: menos RAM peak (minify + rollup paralelo). */
 const dockerBuild = process.env.DOCKER_BUILD === "1";
+
+/** CDN/browser: HTML SSR “casi eterno” hasta el próximo deploy (+ purge CF). */
+const ssrLongCache = {
+  headers: {
+    "cache-control":
+      "public, max-age=31536000, stale-while-revalidate=86400",
+  },
+} as const;
 
 export default defineNuxtConfig({
   compatibilityDate: "2025-07-15",
   devtools: { enabled: true },
 
-  // SSR Node (Coolify). Misma app, dos hosts → cámara por Host.
+  // SSR + prerender selectivo (hybrid). Cámara fijada en build vía DEFAULT_CHAMBER.
   ssr: true,
   nitro: {
-    preset: nitroPreset,
+    preset: "node-server",
     sourceMap: false,
     compressPublicAssets: !dockerBuild,
     minify: !dockerBuild,
+    prerender: {
+      // Rutas las agrega el hook `prerender:routes` (manifiesto por cámara).
+      crawlLinks: false,
+      failOnError: false,
+    },
     ...(dockerBuild
       ? {
           rollupConfig: {
@@ -35,18 +49,38 @@ export default defineNuxtConfig({
           },
         }
       : {}),
-    vercel: {
-      config: {
-        bypassToken: revalidateSecret || undefined,
-      },
+  },
+
+  hooks: {
+    async "prerender:routes"(ctx) {
+      const routes = await collectChamberPrerenderRoutes(defaultChamber);
+      for (const route of routes) {
+        ctx.routes.add(route);
+      }
+      console.info(
+        `[prerender] ${defaultChamber}: ${routes.length} rutas (índices + activos + actas ≤${ACTAS_SSG_YEARS}a)`,
+      );
     },
   },
 
   routeRules: {
-    // Sin ISR/SWR de página en Node: cachear solo por path mezclaría
-    // diputados.* y senadores.* (mismo path, distinto Host).
-    // La data pesada vive en caches en memoria de *-data.ts.
     "/api/**": { cache: false },
+    // Shells de índice: SSG solo de la cámara de esta imagen.
+    "/": { prerender: true },
+    "/actas": { prerender: true },
+    ...(defaultChamber === "diputados"
+      ? {
+          "/diputados": { prerender: true },
+          "/diputados/bloques": { prerender: true },
+        }
+      : {
+          "/senadores": { prerender: true },
+          "/senadores/partidos": { prerender: true },
+        }),
+    // Detalle: HTML prerenderizado si está en el manifiesto; si no, SSR + cache larga.
+    "/diputados/**": ssrLongCache,
+    "/senadores/**": ssrLongCache,
+    "/actas/**": ssrLongCache,
   },
 
   build: {
@@ -105,7 +139,6 @@ export default defineNuxtConfig({
   // Takumi renderer: components/**/*.takumi.vue
   // @see https://takumi.kane.tw/docs/integration/nuxt
   // Node/Docker: el optionalDependency nativo no entra en .output (ver Dockerfile.build).
-  // Cloudflare: nuxt-og-image elige wasm solo; @takumi-rs/wasm está en dependencies.
   ogImage: {
     defaults: {
       width: 1200,

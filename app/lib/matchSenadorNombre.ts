@@ -8,7 +8,7 @@
  * Si un caso nuevo falla, agregalo en `manual` con el id del senador.
  */
 
-import aliasesFile from "@/data/senadores-alias-nombres.json";
+import aliasesFile from "../data/senadores-alias-nombres.json";
 
 export interface AliasNombresFile {
   _comment?: string;

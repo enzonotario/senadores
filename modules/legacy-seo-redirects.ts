@@ -1,10 +1,10 @@
 import { defineNuxtModule, logger } from "@nuxt/kit";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 
 type RedirectRule = { from: string; to: string; status: 301 | 302 };
 
-/** Solo reglas estáticas en routeRules (no saturan el límite de plataformas). */
+/** Solo reglas estáticas en routeRules. */
 const STATIC_REDIRECTS: RedirectRule[] = [
   { from: "/votaciones", to: "/actas", status: 301 },
   { from: "/votaciones/**", to: "/actas/**", status: 301 },
@@ -98,20 +98,5 @@ export default defineNuxtModule({
       ...nuxt.options.routeRules,
       ...toRouteRules(STATIC_REDIRECTS),
     };
-
-    // Evitar vercel.json gigante (1088 redirects → “max 2048 routes”).
-    nuxt.hooks.hook("nitro:init", (nitro) => {
-      nitro.hooks.hook("compiled", async () => {
-        const rootVercel = join(nuxt.options.rootDir, "vercel.json");
-        try {
-          await unlink(rootVercel);
-          logger.info(
-            "[legacy-seo-redirects] removed root vercel.json (runtime redirects)",
-          );
-        } catch {
-          // no existía
-        }
-      });
-    });
   },
 });

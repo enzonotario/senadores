@@ -4,11 +4,11 @@ import type {
   FilterConfig,
   SortConfig,
   Voto,
-} from "@/lib/types";
+} from "./types";
 import type {
   Acta as DiputadoActa,
   Diputado,
-} from "@/lib/types-diputados";
+} from "./types-diputados";
 
 export function formatDate(dateString: string): string {
   if (!dateString) return "N/A";

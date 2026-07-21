@@ -44,21 +44,6 @@ const { data } = await useAsyncData("senadores-list", async () => {
 });
 const senadores = computed(() => (data.value as any as Senador[]) || []);
 
-if (import.meta.prerender) {
-  const list = data.value || [];
-  prerenderRoutes([
-    ...list.map((d: any) => `/senadores/${d.id}`),
-    ...list.map((d: any) => `/senadores/${d.id}/afinidad`),
-    ...[
-      ...new Set(
-        list.map((d: any) => d.partido).filter(Boolean) as string[],
-      ),
-    ]
-      .map((b) => partidoPath(b))
-      .filter(Boolean) as string[],
-  ]);
-}
-
 const filters = computed<FilterConfig>(() => ({
   ...(provinciaFilter.value.length ? { provincia: provinciaFilter.value } : {}),
   ...(partidoFilter.value.length ? { partido: partidoFilter.value } : {}),

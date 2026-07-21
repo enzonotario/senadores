@@ -1,7 +1,7 @@
 import slugify from "slugify";
-import type { Acta, Diputado, Voto } from "@/lib/types-diputados";
-import { calcularEstadisticasDiputado, isDiputadoActivo } from "@/lib/utils";
-import { averagePresentismo } from "@/utils/presentismo";
+import type { Acta, Diputado, Voto } from "./types-diputados";
+import { calcularEstadisticasDiputado, isDiputadoActivo } from "./utils";
+import { averagePresentismo } from "../utils/presentismo";
 
 const diputadosAliases = [
   {
@@ -53,9 +53,11 @@ function getApiOrigin() {
   }
 }
 
-let _diputados: Diputado[] | null = null;
-let _actas: Acta[] | null = null;
-let _diputadosConActas: Diputado[] | null = null;
+import { createSingleflight } from "./singleflight";
+
+let _diputados = createSingleflight<Diputado[]>();
+let _actas = createSingleflight<Acta[]>();
+let _diputadosConActas = createSingleflight<Diputado[]>();
 
 function assertServerData() {
   if (import.meta.client) {
@@ -67,9 +69,9 @@ function assertServerData() {
 
 /** Limpia caches en memoria. */
 export function clearDiputadosDataCache() {
-  _diputados = null;
-  _actas = null;
-  _diputadosConActas = null;
+  _diputados.clear();
+  _actas.clear();
+  _diputadosConActas.clear();
 }
 
 function maxByPeriod(a: any, b: any) {
@@ -85,85 +87,65 @@ function maxByPeriod(a: any, b: any) {
 }
 
 export async function getDiputados(): Promise<Diputado[]> {
-  if (_diputados) return _diputados;
+  return _diputados.get(async () => {
+    const origin = getApiOrigin();
+    const raw = await $fetch<any[]>(`${origin}/v1/diputados/diputados`);
 
-  const origin = getApiOrigin();
-  const raw = await $fetch<any[]>(`${origin}/v1/diputados/diputados`);
+    const byId = new Map<string, any>();
+    raw.sort(maxByPeriod).forEach((d) => {
+      const id = String(d.id);
+      if (!byId.has(id)) byId.set(id, d);
+    });
 
-  const byId = new Map<string, any>();
-  raw.sort(maxByPeriod).forEach((d) => {
-    const id = String(d.id);
-    if (!byId.has(id)) byId.set(id, d);
+    return Array.from(byId.values())
+      .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      .map((d) => ({
+        ...d,
+        nombreCompleto: `${d.apellido}, ${d.nombre}`,
+      })) as Diputado[];
   });
-
-  const list = Array.from(byId.values())
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    .map((d) => ({
-      ...d,
-      nombreCompleto: `${d.apellido}, ${d.nombre}`,
-    })) as Diputado[];
-
-  _diputados = list;
-  return list;
 }
 
 export async function getActas(): Promise<Acta[]> {
   assertServerData();
-  if (_actas) return _actas;
+  return _actas.get(async () => {
+    const origin = getApiOrigin();
+    const raw = await $fetch<Acta[]>(`${origin}/v1/diputados/actas`);
 
-  const origin = getApiOrigin();
-  const raw = await $fetch<Acta[]>(`${origin}/v1/diputados/actas`);
-
-  _actas = raw.map((acta) => ({
-    ...acta,
-    votos: (acta.votos || []).filter((v) => v.tipoVoto !== "presidente"),
-  }));
-
-  return _actas;
+    return raw.map((acta) => ({
+      ...acta,
+      votos: (acta.votos || []).filter((v) => v.tipoVoto !== "presidente"),
+    }));
+  });
 }
 
 export async function getDiputadosConActas(): Promise<Diputado[]> {
   assertServerData();
-  if (_diputadosConActas) return _diputadosConActas;
+  return _diputadosConActas.get(async () => {
+    const diputados = (await getDiputados()).map((d) => ({
+      ...d,
+      nombreSlug: slug(`${d.apellido}, ${d.nombre}`),
+    }));
 
-  const diputados = (await getDiputados()).map((d) => ({
-    ...d,
-    nombreSlug: slug(`${d.apellido}, ${d.nombre}`),
-  }));
+    const actas = (await getActas()).map((a) => ({
+      ...a,
+      votos: (a.votos || []).map(
+        (v) =>
+          ({
+            ...v,
+            diputadoSlug: slug(v.diputado),
+          }) as Voto,
+      ),
+    }));
 
-  const actas = (await getActas()).map((a) => ({
-    ...a,
-    votos: (a.votos || []).map(
-      (v) =>
-        ({
-          ...v,
-          diputadoSlug: slug(v.diputado),
-        }) as Voto,
-    ),
-  }));
-
-  _diputadosConActas = diputados.map((diputado) => {
-    const actasDiputado = actas
-      .filter((acta) => {
-        const direct = acta.votos.some(
-          (v) => v.diputadoSlug === diputado.nombreSlug,
-        );
-        if (direct) return true;
-        return acta.votos.some((v) => {
-          const alias = diputadosAliases.find((a) =>
-            a.aliases.includes(v.diputado),
+    return diputados.map((diputado) => {
+      const actasDiputado = actas
+        .filter((acta) => {
+          const direct = acta.votos.some(
+            (v) => v.diputadoSlug === diputado.nombreSlug,
           );
-          return Boolean(
-            alias && alias.nombreCompleto === diputado.nombreCompleto,
-          );
-        });
-      })
-      .map((acta) => {
-        let votoDiputado = acta.votos.find(
-          (v) => v.diputadoSlug === diputado.nombreSlug,
-        );
-        if (!votoDiputado) {
-          votoDiputado = acta.votos.find((v) => {
+          if (direct) return true;
+          return acta.votos.some((v) => {
             const alias = diputadosAliases.find((a) =>
               a.aliases.includes(v.diputado),
             );
@@ -171,33 +153,46 @@ export async function getDiputadosConActas(): Promise<Diputado[]> {
               alias && alias.nombreCompleto === diputado.nombreCompleto,
             );
           });
-        }
+        })
+        .map((acta) => {
+          let votoDiputado = acta.votos.find(
+            (v) => v.diputadoSlug === diputado.nombreSlug,
+          );
+          if (!votoDiputado) {
+            votoDiputado = acta.votos.find((v) => {
+              const alias = diputadosAliases.find((a) =>
+                a.aliases.includes(v.diputado),
+              );
+              return Boolean(
+                alias && alias.nombreCompleto === diputado.nombreCompleto,
+              );
+            });
+          }
 
-        return {
-          id: acta.id,
-          titulo: acta.titulo,
-          proyecto: acta.proyecto,
-          descripcion: acta.descripcion,
-          fecha: acta.fecha,
-          periodo: acta.periodo,
-          reunion: acta.reunion,
-          resultado: acta.resultado,
-          votosAfirmativos: acta.votosAfirmativos,
-          votosNegativos: acta.votosNegativos,
-          abstenciones: acta.abstenciones,
-          ausentes: acta.ausentes,
-          presentes: acta.presentes,
-          miembros: acta.miembros,
-          votoDiputado,
-          tipoVotoDiputado: votoDiputado?.tipoVoto,
-        };
-      });
+          return {
+            id: acta.id,
+            titulo: acta.titulo,
+            proyecto: acta.proyecto,
+            descripcion: acta.descripcion,
+            fecha: acta.fecha,
+            periodo: acta.periodo,
+            reunion: acta.reunion,
+            resultado: acta.resultado,
+            votosAfirmativos: acta.votosAfirmativos,
+            votosNegativos: acta.votosNegativos,
+            abstenciones: acta.abstenciones,
+            ausentes: acta.ausentes,
+            presentes: acta.presentes,
+            miembros: acta.miembros,
+            votoDiputado,
+            tipoVotoDiputado: votoDiputado?.tipoVoto,
+          };
+        });
 
-    const estadisticas = calcularEstadisticasDiputado(actasDiputado as any);
-    return { ...diputado, estadisticas, actasDiputado };
+      const estadisticas = calcularEstadisticasDiputado(actasDiputado as any);
+      return { ...diputado, estadisticas, actasDiputado };
+    });
   });
-
-  return _diputadosConActas;
 }
 
 export async function getDiputadoConActasById(

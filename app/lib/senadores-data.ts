@@ -1,16 +1,16 @@
 import slugify from "slugify";
-import type { Acta, Senador, Voto } from "@/lib/types";
+import type { Acta, Senador, Voto } from "./types";
 import {
   calcularEstadisticasSenador,
   isSenadorActivo,
   parseNombreSenador,
-} from "@/lib/utils";
+} from "./utils";
 import {
   getSenadoresAliasMap,
   votoCoincideConSenador,
-} from "@/lib/matchSenadorNombre";
-import { averagePresentismo } from "@/utils/presentismo";
-import { normalizeResultado, normalizeVotoTipo } from "@/utils/votoTipo";
+} from "./matchSenadorNombre";
+import { averagePresentismo } from "../utils/presentismo";
+import { normalizeResultado, normalizeVotoTipo } from "../utils/votoTipo";
 
 function slug(value: string) {
   return slugify(value || "", { lower: true, strict: true, trim: true });
@@ -30,9 +30,11 @@ function getApiOrigin() {
   }
 }
 
-let _senadores: Senador[] | null = null;
-let _actas: Acta[] | null = null;
-let _senadoresConActas: Senador[] | null = null;
+import { createSingleflight } from "./singleflight";
+
+let _senadores = createSingleflight<Senador[]>();
+let _actas = createSingleflight<Acta[]>();
+let _senadoresConActas = createSingleflight<Senador[]>();
 
 function assertServerData() {
   if (import.meta.client) {
@@ -44,9 +46,9 @@ function assertServerData() {
 
 /** Limpia caches en memoria. */
 export function clearSenadoresDataCache() {
-  _senadores = null;
-  _actas = null;
-  _senadoresConActas = null;
+  _senadores.clear();
+  _actas.clear();
+  _senadoresConActas.clear();
 }
 
 function votoMatchesSenador(voto: Voto, senador: Senador): boolean {
@@ -128,82 +130,76 @@ function mapActa(raw: any): Acta {
 }
 
 export async function getSenadores(): Promise<Senador[]> {
-  if (_senadores) return _senadores;
+  return _senadores.get(async () => {
+    const origin = getApiOrigin();
+    const raw = await $fetch<any[]>(`${origin}/v1/senado/senadores`);
 
-  const origin = getApiOrigin();
-  const raw = await $fetch<any[]>(`${origin}/v1/senado/senadores`);
+    const byId = new Map<string, any>();
+    [...raw].sort(maxByPeriod).forEach((d) => {
+      const id = String(d.id);
+      if (!byId.has(id)) byId.set(id, d);
+    });
 
-  const byId = new Map<string, any>();
-  [...raw].sort(maxByPeriod).forEach((d) => {
-    const id = String(d.id);
-    if (!byId.has(id)) byId.set(id, d);
+    return Array.from(byId.values())
+      .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      .map(mapSenador);
   });
-
-  _senadores = Array.from(byId.values())
-    .sort((a, b) => String(a.id).localeCompare(String(b.id)))
-    .map(mapSenador);
-
-  return _senadores;
 }
 
 export async function getActas(): Promise<Acta[]> {
   assertServerData();
-  if (_actas) return _actas;
+  return _actas.get(async () => {
+    const origin = getApiOrigin();
+    const raw = await $fetch<any[]>(`${origin}/v1/senado/actas`);
 
-  const origin = getApiOrigin();
-  const raw = await $fetch<any[]>(`${origin}/v1/senado/actas`);
-
-  _actas = raw
-    .filter((a) => a.fecha && String(a.fecha).trim())
-    .map(mapActa)
-    .sort(
-      (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
-    );
-
-  return _actas;
+    return raw
+      .filter((a) => a.fecha && String(a.fecha).trim())
+      .map(mapActa)
+      .sort(
+        (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime(),
+      );
+  });
 }
 
 export async function getSenadoresConActas(): Promise<Senador[]> {
   assertServerData();
-  if (_senadoresConActas) return _senadoresConActas;
+  return _senadoresConActas.get(async () => {
+    const senadores = await getSenadores();
+    const actas = await getActas();
 
-  const senadores = await getSenadores();
-  const actas = await getActas();
+    return senadores.map((senador) => {
+      const actasSenador = actas
+        .filter((acta) =>
+          acta.votos.some((v) => votoMatchesSenador(v, senador)),
+        )
+        .map((acta) => {
+          const votoSenador = acta.votos.find((v) =>
+            votoMatchesSenador(v, senador),
+          );
+          return {
+            id: acta.id,
+            titulo: acta.titulo,
+            proyecto: acta.proyecto,
+            descripcion: acta.descripcion,
+            fecha: acta.fecha,
+            periodo: acta.periodo,
+            reunion: acta.reunion,
+            resultado: acta.resultado,
+            votosAfirmativos: acta.votosAfirmativos,
+            votosNegativos: acta.votosNegativos,
+            abstenciones: acta.abstenciones,
+            ausentes: acta.ausentes,
+            presentes: acta.presentes,
+            miembros: acta.miembros,
+            votoSenador,
+            tipoVotoSenador: votoSenador?.tipoVoto,
+          };
+        });
 
-  _senadoresConActas = senadores.map((senador) => {
-    const actasSenador = actas
-      .filter((acta) =>
-        acta.votos.some((v) => votoMatchesSenador(v, senador)),
-      )
-      .map((acta) => {
-        const votoSenador = acta.votos.find((v) =>
-          votoMatchesSenador(v, senador),
-        );
-        return {
-          id: acta.id,
-          titulo: acta.titulo,
-          proyecto: acta.proyecto,
-          descripcion: acta.descripcion,
-          fecha: acta.fecha,
-          periodo: acta.periodo,
-          reunion: acta.reunion,
-          resultado: acta.resultado,
-          votosAfirmativos: acta.votosAfirmativos,
-          votosNegativos: acta.votosNegativos,
-          abstenciones: acta.abstenciones,
-          ausentes: acta.ausentes,
-          presentes: acta.presentes,
-          miembros: acta.miembros,
-          votoSenador,
-          tipoVotoSenador: votoSenador?.tipoVoto,
-        };
-      });
-
-    const estadisticas = calcularEstadisticasSenador(actasSenador);
-    return { ...senador, estadisticas, actasSenador };
+      const estadisticas = calcularEstadisticasSenador(actasSenador);
+      return { ...senador, estadisticas, actasSenador };
+    });
   });
-
-  return _senadoresConActas;
 }
 
 /** Param de ruta: id API, nombre completo (Next legacy) o nombreSlug. */

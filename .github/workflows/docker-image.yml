@@ -1,6 +1,7 @@
 name: Docker image (Coolify)
 
 # Build en GitHub (≈7 GB RAM). Coolify solo hace pull — evita OOM en el VPS.
+# Matrix: una imagen por cámara (hybrid SSG con DEFAULT_CHAMBER).
 on:
   push:
     branches:
@@ -19,6 +20,10 @@ env:
 jobs:
   build-push:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        chamber: [diputados, senadores]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,12 +43,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.REGISTRY }}/${{ github.repository }}
-          # Coolify busca :${{ github.sha }} (SHA completo, sin prefijo).
           tags: |
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/diputados-senadores' }}
-            type=ref,event=branch
-            type=sha,format=long,prefix=
-            type=sha,prefix=sha-
+            type=raw,value=${{ matrix.chamber }}-latest,enable=${{ github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/diputados-senadores' }}
+            type=raw,value=${{ matrix.chamber }}-${{ github.sha }}
+            type=raw,value=latest,enable=${{ matrix.chamber == 'senadores' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/diputados-senadores') }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -55,21 +58,41 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             NODE_MAX_OLD_SPACE_SIZE=6144
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+            NUXT_PUBLIC_DEFAULT_CHAMBER=${{ matrix.chamber }}
+          cache-from: type=gha,scope=chamber-${{ matrix.chamber }}
+          cache-to: type=gha,mode=max,scope=chamber-${{ matrix.chamber }}
 
-      # Secrets: COOLIFY_API_TOKEN (Bearer) + COOLIFY_APP_UUID.
-      # Desactivá auto-deploy al git push para evitar race (Coolify antes que GHA).
-      - name: Trigger Coolify deploy
+  deploy-coolify:
+    needs: build-push
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/feature/diputados-senadores'
+    steps:
+      # Secrets: COOLIFY_API_TOKEN + COOLIFY_APP_UUID_DIPUTADOS + COOLIFY_APP_UUID_SENADORES
+      # (fallback: COOLIFY_APP_UUID solo senadores, legado).
+      - name: Trigger Coolify deploy (ambos servicios)
         env:
           COOLIFY_API_TOKEN: ${{ secrets.COOLIFY_API_TOKEN }}
-          COOLIFY_APP_UUID: ${{ secrets.COOLIFY_APP_UUID }}
+          UUID_DIPUTADOS: ${{ secrets.COOLIFY_APP_UUID_DIPUTADOS }}
+          UUID_SENADORES: ${{ secrets.COOLIFY_APP_UUID_SENADORES }}
+          UUID_LEGACY: ${{ secrets.COOLIFY_APP_UUID }}
         run: |
-          if [ -z "$COOLIFY_API_TOKEN" ] || [ -z "$COOLIFY_APP_UUID" ]; then
-            echo "COOLIFY_API_TOKEN / COOLIFY_APP_UUID no configurados; skip"
+          if [ -z "$COOLIFY_API_TOKEN" ]; then
+            echo "COOLIFY_API_TOKEN no configurado; skip"
             exit 0
           fi
-          curl -fsS -X POST \
-            "${COOLIFY_API_BASE}/deploy?uuid=${COOLIFY_APP_UUID}&force=false" \
-            -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
-            -H "Accept: application/json"
+          deploy() {
+            local name="$1"
+            local uuid="$2"
+            if [ -z "$uuid" ]; then
+              echo "skip $name (uuid vacío)"
+              return 0
+            fi
+            echo "Deploy $name ($uuid)"
+            curl -fsS -X POST \
+              "${COOLIFY_API_BASE}/deploy?uuid=${uuid}&force=false" \
+              -H "Authorization: Bearer ${COOLIFY_API_TOKEN}" \
+              -H "Accept: application/json"
+            echo
+          }
+          deploy diputados "${UUID_DIPUTADOS}"
+          deploy senadores "${UUID_SENADORES:-$UUID_LEGACY}"

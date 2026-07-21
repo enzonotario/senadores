@@ -37,10 +37,6 @@ const { data } = await useAsyncData("actas", async () => {
 });
 const actas = computed(() => (data.value as any as Acta[]) || []);
 
-if (import.meta.prerender) {
-  prerenderRoutes((data.value || []).map((a: any) => `/actas/${a.id}`));
-}
-
 const years = computed(() => getYearsFromActas(actas.value));
 const year = useRouteQuery("year", years.value[0] || "todos");
 

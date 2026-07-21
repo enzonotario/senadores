@@ -45,21 +45,6 @@ const { data } = await useAsyncData("diputados-list", async () => {
 });
 const diputados = computed(() => (data.value as any as Diputado[]) || []);
 
-if (import.meta.prerender) {
-  const list = data.value || [];
-  prerenderRoutes([
-    ...list.map((d: any) => `/diputados/${d.id}`),
-    ...list.map((d: any) => `/diputados/${d.id}/afinidad`),
-    ...[
-      ...new Set(
-        list.map((d: any) => d.bloque).filter(Boolean) as string[],
-      ),
-    ]
-      .map((b) => bloquePath(b))
-      .filter(Boolean) as string[],
-  ]);
-}
-
 const filters = computed<FilterConfig>(() => ({
   ...(provinciaFilter.value.length ? { provincia: provinciaFilter.value } : {}),
   ...(bloqueFilter.value.length ? { bloque: bloqueFilter.value } : {}),

@@ -23,7 +23,7 @@ function chamberFromEvent(event: any): ChamberId {
 
 /**
  * Redirects SEO legacy (senadores Next → Nuxt).
- * Los ~1k nombre→id van por mapa JSON (no routeRules / vercel.json).
+ * Los ~1k nombre→id van por mapa JSON (no routeRules masivos).
  */
 export default defineEventHandler((event) => {
   if (chamberFromEvent(event) !== "senadores") return;

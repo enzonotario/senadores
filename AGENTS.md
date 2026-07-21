@@ -18,9 +18,8 @@ Una sola app **Nuxt 4 (SSR)** que sirve **Diputados** y **Senadores** según el 
 ```bash
 pnpm install
 pnpm dev          # :3200 --host
-pnpm build        # SSR Node (Coolify / Docker)
+pnpm build        # SSR Node + hybrid SSG (Coolify / Docker)
 pnpm start        # node .output/server/index.mjs
-pnpm build:cf     # preset Cloudflare Workers (opcional)
 pnpm preview
 pnpm lint
 pnpm lint:fix
@@ -30,27 +29,47 @@ Package manager: **pnpm**.
 
 ## Deploy (Coolify / Docker / VPS) — recomendado
 
-Una sola app Node SSR. Ambos dominios apuntan al **mismo** servicio; la cámara sale del `Host`.
+**Dos servicios Coolify** (misma imagen base, distinto tag y `NUXT_PUBLIC_DEFAULT_CHAMBER`):
 
-No hace falta SQLite/API intermedia por ahora: en un VPS con ≥2 GB RAM las actas (~64 MB diputados) viven en caches en memoria de `*-data.ts` tras el primer hit. Vercel/CF fallaban por **límites de plataforma**, no porque Node no pueda.
+| Servicio | Dominio | `IMAGE_TAG` | `NUXT_PUBLIC_DEFAULT_CHAMBER` |
+|----------|---------|-------------|-------------------------------|
+| Diputados | `diputados.argentinadatos.com` | `diputados-latest` | `diputados` |
+| Senadores | `senadores.argentinadatos.com` | `senadores-latest` | `senadores` |
+
+Runtime sigue resolviendo cámara por `Host`; el env fija el **manifiesto SSG** del build (hybrid).
+
+### Hybrid SSG
+
+En build (`app/lib/prerender-manifest.ts` + hook `prerender:routes`):
+
+- Índices (`/`, `/actas`, listados de miembros/grupos)
+- Miembros **activos** (sin `/afinidad`: esa ruta es SSR + cache larga)
+- Actas con `fecha >= buildDate − 4 años` (rolling, `ACTAS_SSG_YEARS`)
+
+El resto: SSR + `Cache-Control` largo (`max-age=31536000`). Tras deploy, **purge Cloudflare** de esos paths si el CDN cacheó HTML viejo.
+
+Datos en RAM (`*-data.ts`) + mini-API Nitro (`server/api/*`). El browser no baja dumps de `api.argentinadatos.com`. SQLite solo si hay varias réplicas sin RAM compartida.
 
 ### Coolify: el VPS no debe compilar Nuxt
 
-El `Dockerfile` de la raíz **solo hace** `FROM ghcr.io/...` (pull). El build pesado está en `Dockerfile.build` (GitHub Actions).
+El `Dockerfile` de la raíz **solo hace** `FROM ghcr.io/...` (pull). El build pesado está en `Dockerfile.build` (GitHub Actions, matrix por cámara).
 
-1. Push → Actions buildea con `Dockerfile.build` y publica tags (`:latest`, `:<sha>`, `:feature-diputados-senadores`).
+1. Push → Actions buildea **dos** imágenes (`diputados-latest` / `senadores-latest` + `:<chamber>-<sha>`).
 2. Coolify “build” del `Dockerfile` = pull de GHCR (segundos). **No** debe aparecer `RUN pnpm build` en los logs.
 3. Si ves `Building docker image` + `pnpm build` + exit 137: todavía está usando el Dockerfile viejo multi-stage; redeployá con el `Dockerfile` thin.
 4. Package GHCR privado → en Coolify, Docker Registry: `ghcr.io` + PAT `read:packages`.
-5. Build arg opcional `IMAGE_TAG` (default `feature-diputados-senadores`). Para un commit puntual: SHA de 40 chars.
-6. Evitá race Git vs Actions: desactivá auto-deploy al push y configurá los secrets `COOLIFY_API_TOKEN` + `COOLIFY_APP_UUID` (API deploy de Coolify); el workflow lo dispara al terminar el push de imagen.
+5. Build arg `IMAGE_TAG` = `diputados-latest` o `senadores-latest` (o `diputados-<sha>` puntual).
+6. Evitá race Git vs Actions: desactivá auto-deploy al push. Secrets GHA: `COOLIFY_API_TOKEN`, `COOLIFY_APP_UUID_DIPUTADOS`, `COOLIFY_APP_UUID_SENADORES` (fallback legado: `COOLIFY_APP_UUID` → senadores).
 
 ```bash
-# Local (máquina con RAM)
-docker build -f Dockerfile.build --build-arg NODE_MAX_OLD_SPACE_SIZE=6144 -t diputados-senadores .
+# Local (máquina con RAM) — una cámara
+docker build -f Dockerfile.build \
+  --build-arg NODE_MAX_OLD_SPACE_SIZE=6144 \
+  --build-arg NUXT_PUBLIC_DEFAULT_CHAMBER=diputados \
+  -t diputados-senadores:diputados .
 ```
 
-Cuando haya movimiento en las cámaras:
+Cuando haya movimiento en las cámaras (datos en RAM):
 
 ```bash
 curl -X POST https://senadores.argentinadatos.com/api/revalidate \
@@ -59,14 +78,9 @@ curl -X POST https://senadores.argentinadatos.com/api/revalidate \
   -d '{"clearData":true}'
 ```
 
-Eso vacía las caches en RAM; el próximo request vuelve a bajar datos de `api.argentinadatos.com`.
+Eso vacía las caches en RAM; el próximo request vuelve a bajar datos de `api.argentinadatos.com`. **No** invalida HTML SSG ni CDN: hace falta redeploy (o purge CF de paths SSR largos).
 
-**SQLite / API propia:** la mini-API Nitro (`server/api/*`) ya sirve slices desde las caches RAM de `*-data.ts`. El browser **no** debe llamar a `getActas` / `get*ConActas` ni al dump de `api.argentinadatos.com` para actas. SQLite solo si más adelante hay varias réplicas sin compartir RAM, o queries SQL fuera de proceso.
-
-### Vercel / Cloudflare (legado)
-
-- No subir `vercel.json` masivo (límite 2048 routes); redirects nombre→id en `server/middleware/legacy-seo.ts`.
-- `pnpm build:cf` / `build:vercel` si hace falta. En esos hosts el HTML con actas+votos puede volver a 413/1102.
+Redirects SEO nombre→id: `server/middleware/legacy-seo.ts` (mapa en `assets/legacy-senador-redirects.json`).
 
 ## Reglas duras
 
@@ -90,7 +104,7 @@ app/
     Diputado* Senador*   # dominio
     HemicicloChart.vue   # hemiciclo compartido
   composables/           # useChamber, useMultiQuery, useTableSorting, useApiFetch
-  lib/                   # chamber, *-data, types, utils
+  lib/                   # chamber, *-data, types, utils, prerender-manifest
   utils/                 # bloque, partido, group*, votoTipo, presentismo
   middleware/            # chamber.global.ts
   plugins/               # chamber-seo.ts

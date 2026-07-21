@@ -25,10 +25,6 @@ const { data: bloques } = await useAsyncData("bloques-index", async () => {
   return res.rows || [];
 });
 
-if (import.meta.prerender && bloques.value?.length) {
-  prerenderRoutes(bloques.value.map((b) => `/diputados/bloques/${b.slug}`));
-}
-
 const { data: affinityGroups } = await useAsyncData(
   "bloques-affinity-groups",
   async () => {

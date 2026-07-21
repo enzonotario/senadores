@@ -9,8 +9,6 @@ type RevalidateBody = {
   paths?: string[];
   hosts?: string[];
   chamber?: ChamberId | "all";
-  /** También intenta purge estilo Vercel (x-prerender-revalidate). */
-  vercelPurge?: boolean;
 };
 
 const SEED_PATHS: Record<ChamberId, string[]> = {
@@ -52,7 +50,7 @@ function resolveHosts(body: RevalidateBody): string[] {
  * o `x-revalidate-token`.
  *
  * Body opcional:
- * `{ "clearData": true, "chamber": "all", "vercelPurge": false, "paths": ["/"] }`
+ * `{ "clearData": true, "chamber": "all", "paths": ["/"] }`
  */
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig(event);
@@ -61,8 +59,7 @@ export default defineEventHandler(async (event) => {
   if (!secret) {
     throw createError({
       statusCode: 503,
-      statusMessage:
-        "NUXT_REVALIDATE_SECRET (o VERCEL_BYPASS_TOKEN) no configurado",
+      statusMessage: "NUXT_REVALIDATE_SECRET no configurado",
     });
   }
 
@@ -86,21 +83,14 @@ export default defineEventHandler(async (event) => {
   const warmResults: Array<{
     url: string;
     status: number;
-    vercelCache: string | null;
   }> = [];
 
   const shouldWarm =
-    Boolean(body.paths?.length) ||
-    Boolean(body.vercelPurge) ||
-    body.chamber != null;
+    Boolean(body.paths?.length) || body.chamber != null;
 
-  if (shouldWarm || body.vercelPurge) {
+  if (shouldWarm) {
     const paths = resolvePaths(body);
     const hosts = resolveHosts(body);
-    const headers: Record<string, string> = {};
-    if (body.vercelPurge) {
-      headers["x-prerender-revalidate"] = secret;
-    }
 
     for (const host of hosts) {
       for (const path of paths) {
@@ -108,22 +98,16 @@ export default defineEventHandler(async (event) => {
         try {
           const res = await $fetch.raw(url, {
             method: "HEAD",
-            headers,
             ignoreResponseError: true,
           });
           warmResults.push({
             url,
             status: res.status,
-            vercelCache:
-              res.headers.get("x-vercel-cache") ||
-              res.headers.get("x-now-cache") ||
-              null,
           });
         } catch (err: any) {
           warmResults.push({
             url,
             status: err?.statusCode || err?.status || 0,
-            vercelCache: null,
           });
         }
       }

@@ -25,12 +25,6 @@ const { data: partidos } = await useAsyncData("partidos-index", async () => {
   return res.rows || [];
 });
 
-if (import.meta.prerender && partidos.value?.length) {
-  prerenderRoutes(
-    partidos.value.map((b) => `/senadores/partidos/${b.slug}`),
-  );
-}
-
 const { data: affinityGroups } = await useAsyncData(
   "partidos-affinity-groups",
   async () => {
