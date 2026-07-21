@@ -106,9 +106,10 @@ const sidebarItems = computed<NavigationMenuItem[]>(() => {
       <UNavigationMenu
         :items="navItems"
         variant="link"
+        color="neutral"
         highlight
         :ui="{
-          root: 'h-full w-auto gap-0',
+          root: 'h-full w-auto gap-0 [&>div]:h-full',
           list: 'h-full w-auto gap-0',
           item: 'h-full py-0',
           link: 'h-full rounded-none px-3 sm:px-4 text-sm whitespace-nowrap after:!bottom-0 after:!inset-x-3 after:h-0.5 after:!rounded-none',
