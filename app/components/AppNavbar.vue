@@ -1,17 +1,10 @@
 <script setup lang="ts">
-import type { NavigationMenuItem, TabsItem } from "@nuxt/ui";
+import type { NavigationMenuItem } from "@nuxt/ui";
 
 const route = useRoute();
 const { chamber, otherChamber, otherChamberUrl } = useChamber();
 
-const tabItems = computed<TabsItem[]>(() => [
-  { label: "Inicio", value: "/" },
-  { label: "Votaciones", value: "/actas" },
-  { label: chamber.value.membersLabel, value: chamber.value.membersPath },
-  { label: chamber.value.groupsLabel, value: chamber.value.groupsPath },
-]);
-
-const sidebarItems = computed<NavigationMenuItem[]>(() => {
+const navItems = computed<NavigationMenuItem[]>(() => {
   const path = route.path;
   const groupsActive =
     path.startsWith(chamber.value.groupsPath) ||
@@ -26,28 +19,40 @@ const sidebarItems = computed<NavigationMenuItem[]>(() => {
   return [
     {
       label: "Inicio",
-      icon: "i-lucide-house",
       to: "/",
       active: path === "/",
     },
     {
       label: "Votaciones",
-      icon: "i-lucide-file-text",
       to: "/actas",
       active: path.startsWith("/actas"),
     },
     {
       label: chamber.value.membersLabel,
-      icon: "i-lucide-users",
       to: chamber.value.membersPath,
       active: membersActive,
     },
     {
       label: chamber.value.groupsLabel,
-      icon: "i-lucide-shapes",
       to: chamber.value.groupsPath,
       active: groupsActive,
     },
+  ];
+});
+
+const sidebarItems = computed<NavigationMenuItem[]>(() => {
+  const icons = [
+    "i-lucide-house",
+    "i-lucide-file-text",
+    "i-lucide-users",
+    "i-lucide-shapes",
+  ] as const;
+
+  return [
+    ...navItems.value.map((item, index) => ({
+      ...item,
+      icon: icons[index],
+    })),
     {
       label: otherChamber.value.membersLabel,
       icon: "i-lucide-external-link",
@@ -56,31 +61,6 @@ const sidebarItems = computed<NavigationMenuItem[]>(() => {
       external: true,
     },
   ];
-});
-
-const activeTab = computed({
-  get() {
-    const path = route.path;
-    if (path.startsWith("/actas")) return "/actas";
-    if (
-      path.startsWith(chamber.value.groupsPath) ||
-      path.includes("/bloques") ||
-      path.includes("/partidos")
-    ) {
-      return chamber.value.groupsPath;
-    }
-    if (
-      path.startsWith(chamber.value.membersPath) ||
-      path.startsWith("/diputados") ||
-      path.startsWith("/senadores")
-    ) {
-      return chamber.value.membersPath;
-    }
-    return "/";
-  },
-  set(value: string | number) {
-    navigateTo(String(value));
-  },
 });
 </script>
 
@@ -123,19 +103,15 @@ const activeTab = computed({
 
     <!-- Slot default = center: oculto en mobile (lg:flex) -->
     <nav class="h-full flex justify-end" aria-label="Navegación principal">
-      <UTabs
-        v-model="activeTab"
-        :items="tabItems"
+      <UNavigationMenu
+        :items="navItems"
         variant="link"
-        size="sm"
-        :content="false"
-        activation-mode="manual"
+        highlight
         :ui="{
-          root: 'h-full w-auto',
-          list: 'h-full w-auto p-0 gap-0 border-0 mb-0',
-          trigger:
-            'h-full rounded-none px-3 sm:px-4 text-sm whitespace-nowrap',
-          indicator: 'bottom-0 h-0.5 rounded-none',
+          root: 'h-full w-auto gap-0',
+          list: 'h-full w-auto gap-0',
+          item: 'h-full py-0',
+          link: 'h-full rounded-none px-3 sm:px-4 text-sm whitespace-nowrap after:!bottom-0 after:!inset-x-3 after:h-0.5 after:!rounded-none',
         }"
         class="h-full"
       />
