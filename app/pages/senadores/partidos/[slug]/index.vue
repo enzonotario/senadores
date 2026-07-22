@@ -242,22 +242,26 @@ useChamberSeo(() => {
       />
 
       <template v-if="pageVista === 'afinidad'">
-        <AppDataSkeleton v-if="peersPending" variant="affinity" />
-
-        <AnalisisGroupAffinityDetail
-          v-else
-          embedded
-          group-label="partido"
-          :group-name="partido.nombre"
-          :group-color="partido.color"
-          :members="cohesionMembers"
-          :all-members="allActiveMembers"
-          member-base-path="/senadores"
-          group-base-path="/senadores/partidos"
-          :group-slugs="groupSlugs"
-          :actas-meta="actasMeta"
-          :group-colors="groupColors"
-        />
+        <ClientOnly>
+          <AppDataSkeleton v-if="peersPending" variant="affinity" />
+          <AnalisisGroupAffinityDetail
+            v-else
+            embedded
+            group-label="partido"
+            :group-name="partido.nombre"
+            :group-color="partido.color"
+            :members="cohesionMembers"
+            :all-members="allActiveMembers"
+            member-base-path="/senadores"
+            group-base-path="/senadores/partidos"
+            :group-slugs="groupSlugs"
+            :actas-meta="actasMeta"
+            :group-colors="groupColors"
+          />
+          <template #fallback>
+            <AppDataSkeleton variant="affinity" />
+          </template>
+        </ClientOnly>
       </template>
 
       <template v-else>

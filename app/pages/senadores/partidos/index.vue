@@ -145,13 +145,17 @@ useChamberSeo({
       </UTable>
     </DataTableCard>
 
-    <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
-
-    <AnalisisInterGroupAffinityHeatmap
-      v-else-if="(affinityGroups || []).length >= 2"
-      group-label="partido"
-      :groups="affinityGroups || []"
-      group-base-path="/senadores/partidos"
-    />
+    <ClientOnly>
+      <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
+      <AnalisisInterGroupAffinityHeatmap
+        v-else-if="(affinityGroups || []).length >= 2"
+        group-label="partido"
+        :groups="affinityGroups || []"
+        group-base-path="/senadores/partidos"
+      />
+      <template #fallback>
+        <AppDataSkeleton variant="affinity" />
+      </template>
+    </ClientOnly>
   </div>
 </template>

@@ -128,22 +128,26 @@ useChamberSeo(() => {
       </p>
     </UCard>
 
-    <AppDataSkeleton v-else-if="peersPending" variant="affinity" />
-
-    <AnalisisMemberAffinityDetail
-      v-else
-      :member-id="diputado.id"
-      :member-name="memberName"
-      :member-foto="diputado.foto"
-      :member-to="`/diputados/${diputado.id}`"
-      group-label="bloque"
-      :group-name="diputado.bloque"
-      :group-to="bloquePath(diputado.bloque)"
-      member-base-path="/diputados"
-      :peers="affinityPeers"
-      :group-peers="affinityGroupPeers"
-      :actas="actas"
-      :group-colors="groupColors"
-    />
+    <ClientOnly v-else>
+      <AppDataSkeleton v-if="peersPending" variant="affinity" />
+      <AnalisisMemberAffinityDetail
+        v-else
+        :member-id="diputado.id"
+        :member-name="memberName"
+        :member-foto="diputado.foto"
+        :member-to="`/diputados/${diputado.id}`"
+        group-label="bloque"
+        :group-name="diputado.bloque"
+        :group-to="bloquePath(diputado.bloque)"
+        member-base-path="/diputados"
+        :peers="affinityPeers"
+        :group-peers="affinityGroupPeers"
+        :actas="actas"
+        :group-colors="groupColors"
+      />
+      <template #fallback>
+        <AppDataSkeleton variant="affinity" />
+      </template>
+    </ClientOnly>
   </div>
 </template>

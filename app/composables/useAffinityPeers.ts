@@ -6,6 +6,8 @@ export type AffinityPeerDto = AffinityMemberInput & { activo: boolean };
  * Peers slim desde la mini-API Nitro.
  * `server: false`: no embeber votos de afinidad en HTML (OG / scrapers).
  * El browser pide a /api/affinity-peers (cache RAM), nunca el dump de actas.
+ * Las vistas deben envolver el UI en `<ClientOnly>` para evitar mismatch
+ * de hidratación (SSR sin peers vs client pending/success).
  */
 export function useAffinityPeers(key = "affinity-peers") {
   const { localFetch } = useLocalApi();

@@ -138,13 +138,17 @@ useChamberSeo({
       </UTable>
     </DataTableCard>
 
-    <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
-
-    <AnalisisInterGroupAffinityHeatmap
-      v-else-if="(affinityGroups || []).length >= 2"
-      group-label="bloque"
-      :groups="affinityGroups || []"
-      group-base-path="/diputados/bloques"
-    />
+    <ClientOnly>
+      <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
+      <AnalisisInterGroupAffinityHeatmap
+        v-else-if="(affinityGroups || []).length >= 2"
+        group-label="bloque"
+        :groups="affinityGroups || []"
+        group-base-path="/diputados/bloques"
+      />
+      <template #fallback>
+        <AppDataSkeleton variant="affinity" />
+      </template>
+    </ClientOnly>
   </div>
 </template>

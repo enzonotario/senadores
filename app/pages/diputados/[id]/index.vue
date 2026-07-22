@@ -408,20 +408,24 @@ const profileSections = computed<ProfileFactSection[]>(() => {
         :member-label="`${diputado.nombre} ${diputado.apellido}`"
       />
 
-      <AppDataSkeleton v-if="peersPending" variant="affinity" />
-
-      <AnalisisMemberAffinityPanel
-        v-else-if="affinityPeers.length"
-        :member-id="diputado.id"
-        :member-name="`${diputado.nombre} ${diputado.apellido}`"
-        group-label="bloque"
-        :group-name="diputado.bloque"
-        member-base-path="/diputados"
-        :peers="affinityPeers"
-        :group-peers="affinityGroupPeers"
-        :actas="actasMeta"
-        :detail-to="`/diputados/${diputado.id}/afinidad`"
-      />
+      <ClientOnly>
+        <AppDataSkeleton v-if="peersPending" variant="affinity" />
+        <AnalisisMemberAffinityPanel
+          v-else-if="affinityPeers.length"
+          :member-id="diputado.id"
+          :member-name="`${diputado.nombre} ${diputado.apellido}`"
+          group-label="bloque"
+          :group-name="diputado.bloque"
+          member-base-path="/diputados"
+          :peers="affinityPeers"
+          :group-peers="affinityGroupPeers"
+          :actas="actasMeta"
+          :detail-to="`/diputados/${diputado.id}/afinidad`"
+        />
+        <template #fallback>
+          <AppDataSkeleton variant="affinity" />
+        </template>
+      </ClientOnly>
 
       <DataTableCard title="Sus votos">
         <template #filters>

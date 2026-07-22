@@ -4,14 +4,14 @@
  * reenvía en el fetch interno y sin eso la mini-API elige la cámara default.
  */
 export function useLocalApi() {
-  const { chamber } = useChamber();
+  const { chamberId } = useChamber();
   const requestFetch = useRequestFetch();
 
   function localFetch<T = unknown>(
     url: string,
     opts?: Parameters<typeof $fetch<T>>[1],
   ): Promise<T> {
-    const chamberId = chamber.value.id;
+    const chamber = chamberId.value;
     const prevQuery =
       opts && typeof opts === "object" && opts.query
         ? (opts.query as Record<string, unknown>)
@@ -25,11 +25,11 @@ export function useLocalApi() {
       ...opts,
       query: {
         ...prevQuery,
-        chamber: chamberId,
+        chamber,
       },
       headers: {
         ...prevHeaders,
-        "x-chamber": chamberId,
+        "x-chamber": chamber,
       },
     } as any);
   }
