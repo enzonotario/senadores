@@ -22,7 +22,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData(
+const { data, pending } = await useAsyncData(
   () => `senador-afinidad-${id.value}`,
   () => localFetch<MemberProfileResponse>(`/api/members/${id.value}`),
   { watch: [id] },
@@ -37,7 +37,7 @@ if (senador.value && senador.value.id !== id.value) {
   });
 }
 
-const { data: peersPayload } = await useAffinityPeers(
+const { data: peersPayload, pending: peersPending } = useAffinityPeers(
   "senadores-affinity-peers",
 );
 
@@ -111,28 +111,34 @@ useChamberSeo(() => {
 </script>
 
 <template>
-  <UCard v-if="!senador">
-    <template #header>
-      <h1 class="text-xl font-semibold">Senador no encontrado</h1>
-    </template>
-    <p class="text-gray-600 dark:text-gray-300">
-      No se pudo encontrar información para el senador solicitado.
-    </p>
-  </UCard>
+  <div class="page-container">
+    <AppDataSkeleton v-if="pending" variant="member" />
 
-  <AnalisisMemberAffinityDetail
-    v-else
-    :member-id="senador.id"
-    :member-name="memberName"
-    :member-foto="senador.foto"
-    :member-to="`/senadores/${senador.id}`"
-    group-label="partido"
-    :group-name="senador.partido"
-    :group-to="partidoPath(senador.partido)"
-    member-base-path="/senadores"
-    :peers="affinityPeers"
-    :group-peers="affinityGroupPeers"
-    :actas="actas"
-    :group-colors="groupColors"
-  />
+    <UCard v-else-if="!senador">
+      <template #header>
+        <h1 class="text-xl font-semibold">Senador no encontrado</h1>
+      </template>
+      <p class="text-gray-600 dark:text-gray-300">
+        No se pudo encontrar información para el senador solicitado.
+      </p>
+    </UCard>
+
+    <AppDataSkeleton v-else-if="peersPending" variant="affinity" />
+
+    <AnalisisMemberAffinityDetail
+      v-else
+      :member-id="senador.id"
+      :member-name="memberName"
+      :member-foto="senador.foto"
+      :member-to="`/senadores/${senador.id}`"
+      group-label="partido"
+      :group-name="senador.partido"
+      :group-to="partidoPath(senador.partido)"
+      member-base-path="/senadores"
+      :peers="affinityPeers"
+      :group-peers="affinityGroupPeers"
+      :actas="actas"
+      :group-colors="groupColors"
+    />
+  </div>
 </template>

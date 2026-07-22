@@ -16,10 +16,10 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData(
+const { data, pending } = useAsyncData(
   () => `acta-${id.value}`,
   () => localFetch(`/api/actas/${id.value}`),
-  { watch: [id] },
+  { lazy: true, watch: [id] },
 );
 const acta = computed(() => data.value || null);
 
@@ -152,7 +152,9 @@ function onRowSelect(_e: Event, row: { original: Diputado }) {
 
 <template>
   <div class="page-container relative flex flex-col gap-10">
-    <UCard v-if="!acta">
+    <AppDataSkeleton v-if="pending && !data" variant="acta" />
+
+    <UCard v-else-if="!acta">
       <template #header>
         <h1 class="text-xl font-semibold">Acta no encontrada</h1>
       </template>

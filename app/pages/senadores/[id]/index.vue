@@ -52,7 +52,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData(
+const { data, pending } = await useAsyncData(
   () => `senador-${id.value}`,
   () =>
     localFetch<MemberProfileResponse>(`/api/members/${id.value}`, {
@@ -87,7 +87,7 @@ watch(
   { immediate: true },
 );
 
-const { data: peersPayload } = await useAffinityPeers(
+const { data: peersPayload, pending: peersPending } = useAffinityPeers(
   "senadores-affinity-peers",
 );
 
@@ -289,7 +289,9 @@ const profileSections = computed<ProfileFactSection[]>(() => {
 
 <template>
   <div class="page-container flex flex-col gap-10">
-    <UCard v-if="!senador">
+    <AppDataSkeleton v-if="pending && !senador" variant="member" />
+
+    <UCard v-else-if="!senador">
       <template #header>
         <h1 class="text-xl font-semibold">Senador no encontrado</h1>
       </template>
@@ -298,7 +300,8 @@ const profileSections = computed<ProfileFactSection[]>(() => {
       </p>
     </UCard>
 
-    <UCard v-else :ui="{ body: 'p-0!' }" class="overflow-hidden">
+    <template v-else>
+    <UCard :ui="{ body: 'p-0!' }" class="overflow-hidden">
       <div class="flex flex-col md:flex-row">
         <div
           class="w-40 sm:w-48 md:w-xs shrink-0 mx-auto md:mx-0 aspect-square overflow-hidden bg-elevated"
@@ -412,11 +415,13 @@ const profileSections = computed<ProfileFactSection[]>(() => {
     <ChartsMemberVotingCharts
       v-if="chartActas.length"
       :actas="chartActas"
-      :member-label="senador?.nombreCompleto || senador?.nombre"
+      :member-label="senador.nombreCompleto || senador.nombre"
     />
 
+    <AppDataSkeleton v-if="peersPending" variant="affinity" />
+
     <AnalisisMemberAffinityPanel
-      v-if="senador && affinityPeers.length"
+      v-else-if="affinityPeers.length"
       :member-id="senador.id"
       :member-name="senador.nombreCompleto || senador.nombre"
       group-label="partido"
@@ -428,7 +433,7 @@ const profileSections = computed<ProfileFactSection[]>(() => {
       :detail-to="`/senadores/${senador.id}/afinidad`"
     />
 
-    <DataTableCard v-if="senador" title="Sus votos">
+    <DataTableCard title="Sus votos">
       <template #filters>
         <div class="w-full sm:max-w-sm">
           <FilterSearch
@@ -480,5 +485,6 @@ const profileSections = computed<ProfileFactSection[]>(() => {
         </UButton>
       </div>
     </DataTableCard>
+    </template>
   </div>
 </template>

@@ -39,10 +39,14 @@ const mostrarActivos = computed({
 
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData("diputados-list", async () => {
-  const res = await localFetch<{ members: Diputado[] }>("/api/members");
-  return res.members || [];
-});
+const { data, pending } = useAsyncData(
+  "diputados-list",
+  async () => {
+    const res = await localFetch<{ members: Diputado[] }>("/api/members");
+    return res.members || [];
+  },
+  { lazy: true },
+);
 const diputados = computed(() => (data.value as any as Diputado[]) || []);
 
 const filters = computed<FilterConfig>(() => ({
@@ -249,95 +253,99 @@ function onRowSelect(_e: Event, row: { original: Diputado }) {
       />
     </div>
 
-    <DataTableCard v-if="vista === 'lista'">
-      <UTable
-        v-model:sorting="sorting"
-        :data="displayed"
-        :columns="tableColumns"
-        :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
-        :empty="emptyMessage"
-        :on-select="onRowSelect"
-      >
-        <template #foto-cell="{ row }">
-          <DiputadoTableAvatar
-            :src="(row.original as Diputado).foto"
-            :alt="(row.original as Diputado).nombreCompleto"
-          />
-        </template>
-        <template #nombreCompleto-cell="{ row }">
-          <NuxtLink
-            :to="`/diputados/${(row.original as Diputado).id}`"
-            class="hover:underline"
-            @click.stop
-          >
-            {{ (row.original as Diputado).nombreCompleto }}
-          </NuxtLink>
-        </template>
-        <template #bloque-cell="{ row }">
-          <NuxtLink
-            v-if="bloquePath((row.original as Diputado).bloque)"
-            :to="bloquePath((row.original as Diputado).bloque)!"
-            class="inline-flex"
-            @click.stop
-          >
+    <AppDataSkeleton v-if="pending" variant="list" />
+
+    <template v-else>
+      <DataTableCard v-if="vista === 'lista'">
+        <UTable
+          v-model:sorting="sorting"
+          :data="displayed"
+          :columns="tableColumns"
+          :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
+          :empty="emptyMessage"
+          :on-select="onRowSelect"
+        >
+          <template #foto-cell="{ row }">
+            <DiputadoTableAvatar
+              :src="(row.original as Diputado).foto"
+              :alt="(row.original as Diputado).nombreCompleto"
+            />
+          </template>
+          <template #nombreCompleto-cell="{ row }">
+            <NuxtLink
+              :to="`/diputados/${(row.original as Diputado).id}`"
+              class="hover:underline"
+              @click.stop
+            >
+              {{ (row.original as Diputado).nombreCompleto }}
+            </NuxtLink>
+          </template>
+          <template #bloque-cell="{ row }">
+            <NuxtLink
+              v-if="bloquePath((row.original as Diputado).bloque)"
+              :to="bloquePath((row.original as Diputado).bloque)!"
+              class="inline-flex"
+              @click.stop
+            >
+              <UBadge
+                variant="outline"
+                color="neutral"
+                class="w-[max-content] max-w-32 whitespace-break-spaces hover:bg-elevated"
+              >
+                {{ (row.original as Diputado).bloque }}
+              </UBadge>
+            </NuxtLink>
             <UBadge
+              v-else
               variant="outline"
               color="neutral"
-              class="w-[max-content] max-w-32 whitespace-break-spaces hover:bg-elevated"
+              class="w-[max-content] max-w-32 whitespace-break-spaces"
             >
-              {{ (row.original as Diputado).bloque }}
+              {{ (row.original as Diputado).bloque || "—" }}
             </UBadge>
-          </NuxtLink>
-          <UBadge
-            v-else
-            variant="outline"
-            color="neutral"
-            class="w-[max-content] max-w-32 whitespace-break-spaces"
-          >
-            {{ (row.original as Diputado).bloque || "—" }}
-          </UBadge>
-        </template>
-        <template #inicio-cell="{ row }">
-          <span>{{
-            formatDate((row.original as Diputado).periodoMandato?.inicio)
-          }}</span>
-        </template>
-        <template #fin-cell="{ row }">
-          <span>{{
-            formatDate((row.original as Diputado).periodoMandato?.fin)
-          }}</span>
-        </template>
-        <template #presentismo-cell="{ row }">
-          <UBadge
-            :color="
-              ((row.original as Diputado).estadisticas?.presentismo || 0) > 80
-                ? 'success'
-                : 'error'
-            "
-            variant="soft"
-          >
-            {{ (row.original as Diputado).estadisticas?.presentismo ?? 0 }}%
-          </UBadge>
-        </template>
-      </UTable>
-    </DataTableCard>
+          </template>
+          <template #inicio-cell="{ row }">
+            <span>{{
+              formatDate((row.original as Diputado).periodoMandato?.inicio)
+            }}</span>
+          </template>
+          <template #fin-cell="{ row }">
+            <span>{{
+              formatDate((row.original as Diputado).periodoMandato?.fin)
+            }}</span>
+          </template>
+          <template #presentismo-cell="{ row }">
+            <UBadge
+              :color="
+                ((row.original as Diputado).estadisticas?.presentismo || 0) > 80
+                  ? 'success'
+                  : 'error'
+              "
+              variant="soft"
+            >
+              {{ (row.original as Diputado).estadisticas?.presentismo ?? 0 }}%
+            </UBadge>
+          </template>
+        </UTable>
+      </DataTableCard>
 
-    <DiputadosGroupedTable
-      v-else-if="vista === 'bloques'"
-      group-by="bloque"
-      :groups="groupsByBloque"
-      :accent-colors="bloqueColores"
-      :group-to="(g) => bloquePath(g.key)"
-      show-presentismo
-      :empty-message="emptyMessage"
-    />
+      <DiputadosGroupedTable
+        v-else-if="vista === 'bloques'"
+        group-by="bloque"
+        :groups="groupsByBloque"
+        :accent-colors="bloqueColores"
+        :group-to="(g) => bloquePath(g.key)"
+        show-presentismo
+        :empty-message="emptyMessage"
+      />
 
-    <DiputadosGroupedTable
-      v-else-if="vista === 'provincias'"
-      group-by="provincia"
-      :groups="groupsByProvincia"
-      show-presentismo
-      :empty-message="emptyMessage"
-    />
+      <DiputadosGroupedTable
+        v-else-if="vista === 'provincias'"
+        group-by="provincia"
+        :groups="groupsByProvincia"
+        show-presentismo
+        :empty-message="emptyMessage"
+      />
+    </template>
   </div>
 </template>

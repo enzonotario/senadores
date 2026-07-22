@@ -17,15 +17,19 @@ type AffinityIndexResponse = {
 
 const { localFetch } = useLocalApi();
 
-const { data: bloques } = await useAsyncData("bloques-index", async () => {
-  const res = await localFetch<AffinityIndexResponse>(
-    "/api/groups/affinity-index",
-    { query: { rowsOnly: "1" } },
-  );
-  return res.rows || [];
-});
+const { data: bloques, pending: pendingBloques } = useAsyncData(
+  "bloques-index",
+  async () => {
+    const res = await localFetch<AffinityIndexResponse>(
+      "/api/groups/affinity-index",
+      { query: { rowsOnly: "1" } },
+    );
+    return res.rows || [];
+  },
+  { lazy: true },
+);
 
-const { data: affinityGroups } = await useAsyncData(
+const { data: affinityGroups, pending: pendingAffinity } = useAsyncData(
   "bloques-affinity-groups",
   async () => {
     const res = await localFetch<AffinityIndexResponse>(
@@ -33,7 +37,7 @@ const { data: affinityGroups } = await useAsyncData(
     );
     return res.groups || [];
   },
-  { server: false },
+  { server: false, lazy: true },
 );
 
 const { sorting } = useTableSorting("activos", true);
@@ -84,7 +88,9 @@ useChamberSeo({
       </p>
     </div>
 
-    <DataTableCard>
+    <AppDataSkeleton v-if="pendingBloques" variant="list" />
+
+    <DataTableCard v-else>
       <UTable
         v-model:sorting="sorting"
         :data="bloques || []"
@@ -132,8 +138,10 @@ useChamberSeo({
       </UTable>
     </DataTableCard>
 
+    <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
+
     <AnalisisInterGroupAffinityHeatmap
-      v-if="(affinityGroups || []).length >= 2"
+      v-else-if="(affinityGroups || []).length >= 2"
       group-label="bloque"
       :groups="affinityGroups || []"
       group-base-path="/diputados/bloques"

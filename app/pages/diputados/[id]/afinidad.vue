@@ -29,7 +29,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id));
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData(
+const { data, pending } = await useAsyncData(
   () => `diputado-afinidad-${id.value}`,
   () => localFetch<MemberProfileResponse>(`/api/members/${id.value}`),
   { watch: [id] },
@@ -37,7 +37,7 @@ const { data } = await useAsyncData(
 const diputado = computed(() => data.value?.member || null);
 const chartActas = computed(() => data.value?.chartActas || []);
 
-const { data: peersPayload } = await useAffinityPeers(
+const { data: peersPayload, pending: peersPending } = useAffinityPeers(
   "diputados-affinity-peers",
 );
 
@@ -116,28 +116,34 @@ useChamberSeo(() => {
 </script>
 
 <template>
-  <UCard v-if="!diputado">
-    <template #header>
-      <h1 class="text-xl font-semibold">Diputado no encontrado</h1>
-    </template>
-    <p class="text-gray-600 dark:text-gray-300">
-      No se pudo encontrar información para el diputado solicitado.
-    </p>
-  </UCard>
+  <div class="page-container">
+    <AppDataSkeleton v-if="pending" variant="member" />
 
-  <AnalisisMemberAffinityDetail
-    v-else
-    :member-id="diputado.id"
-    :member-name="memberName"
-    :member-foto="diputado.foto"
-    :member-to="`/diputados/${diputado.id}`"
-    group-label="bloque"
-    :group-name="diputado.bloque"
-    :group-to="bloquePath(diputado.bloque)"
-    member-base-path="/diputados"
-    :peers="affinityPeers"
-    :group-peers="affinityGroupPeers"
-    :actas="actas"
-    :group-colors="groupColors"
-  />
+    <UCard v-else-if="!diputado">
+      <template #header>
+        <h1 class="text-xl font-semibold">Diputado no encontrado</h1>
+      </template>
+      <p class="text-gray-600 dark:text-gray-300">
+        No se pudo encontrar información para el diputado solicitado.
+      </p>
+    </UCard>
+
+    <AppDataSkeleton v-else-if="peersPending" variant="affinity" />
+
+    <AnalisisMemberAffinityDetail
+      v-else
+      :member-id="diputado.id"
+      :member-name="memberName"
+      :member-foto="diputado.foto"
+      :member-to="`/diputados/${diputado.id}`"
+      group-label="bloque"
+      :group-name="diputado.bloque"
+      :group-to="bloquePath(diputado.bloque)"
+      member-base-path="/diputados"
+      :peers="affinityPeers"
+      :group-peers="affinityGroupPeers"
+      :actas="actas"
+      :group-colors="groupColors"
+    />
+  </div>
 </template>

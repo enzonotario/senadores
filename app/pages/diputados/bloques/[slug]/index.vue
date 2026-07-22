@@ -33,7 +33,7 @@ const { data } = await useAsyncData(
 
 const bloque = computed(() => data.value || null);
 
-const { data: peersPayload } = await useAffinityPeers(
+const { data: peersPayload, pending: peersPending } = useAffinityPeers(
   "diputados-affinity-peers",
 );
 
@@ -236,7 +236,10 @@ useChamberSeo(() => {
       />
 
       <template v-if="pageVista === 'afinidad'">
+        <AppDataSkeleton v-if="peersPending" variant="affinity" />
+
         <AnalisisGroupAffinityDetail
+          v-else
           embedded
           group-label="bloque"
           :group-name="bloque.nombre"

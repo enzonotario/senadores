@@ -7,14 +7,22 @@ import {
 
 const { localFetch } = useLocalApi();
 
-const { data: partidosData } = await useAsyncData("senadores-por-partidos", () =>
-  getSenadoresPorPartidos(),
+const { data: partidosData, pending: pendingPartidos } = useAsyncData(
+  "senadores-por-partidos",
+  () => getSenadoresPorPartidos(),
+  { lazy: true },
 );
 
-const { data: actasData } = await useAsyncData("actas", async () => {
-  const res = await localFetch<{ actas: any[] }>("/api/actas");
-  return res.actas || [];
-});
+const { data: actasData, pending: pendingActas } = useAsyncData(
+  "actas",
+  async () => {
+    const res = await localFetch<{ actas: any[] }>("/api/actas");
+    return res.actas || [];
+  },
+  { lazy: true },
+);
+
+const pendingHome = computed(() => pendingPartidos.value || pendingActas.value);
 
 const senadores = computed(() => partidosData.value?.senadores || []);
 const partidoColores = computed(() => partidosData.value?.partidoColores || {});
@@ -73,38 +81,42 @@ const actasRecientes = computed(() => {
 
     <USeparator class="my-20" />
 
-    <section>
-      <ClientOnly>
-        <SenadoresChart
-          :senadores="senadores"
-          :partido-colores="partidoColores"
-        />
-        <template #fallback>
-          <div
-            class="w-full aspect-[2/1] max-w-4xl mx-auto rounded-lg bg-gray-100 dark:bg-gray-900 animate-pulse"
-            aria-hidden="true"
+    <AppDataSkeleton v-if="pendingHome" variant="home" />
+
+    <template v-else>
+      <section>
+        <ClientOnly>
+          <SenadoresChart
+            :senadores="senadores"
+            :partido-colores="partidoColores"
           />
-        </template>
-      </ClientOnly>
-    </section>
+          <template #fallback>
+            <div
+              class="w-full aspect-[2/1] max-w-4xl mx-auto rounded-lg bg-gray-100 dark:bg-gray-900 animate-pulse"
+              aria-hidden="true"
+            />
+          </template>
+        </ClientOnly>
+      </section>
 
-    <USeparator class="my-20" />
+      <USeparator class="my-20" />
 
-    <section class="space-y-4">
-      <div class="space-y-1">
-        <h2 class="text-2xl font-bold tracking-tight">Cómo viene votando el Senado</h2>
-        <p class="text-sm text-muted max-w-2xl">
-          Cuántas votaciones se aprueban o rechazan, y cuántos senadores asisten, mes a mes.
-        </p>
-      </div>
-      <ChartsActasOverviewCharts :actas="actasData || []" />
-    </section>
+      <section class="space-y-4">
+        <div class="space-y-1">
+          <h2 class="text-2xl font-bold tracking-tight">Cómo viene votando el Senado</h2>
+          <p class="text-sm text-muted max-w-2xl">
+            Cuántas votaciones se aprueban o rechazan, y cuántos senadores asisten, mes a mes.
+          </p>
+        </div>
+        <ChartsActasOverviewCharts :actas="actasData || []" />
+      </section>
 
-    <USeparator class="my-20" />
+      <USeparator class="my-20" />
 
-    <section>
-      <RecentVotings :actas="actasRecientes" />
-    </section>
+      <section>
+        <RecentVotings :actas="actasRecientes" />
+      </section>
+    </template>
 
     <USeparator class="my-20" />
 

@@ -31,10 +31,14 @@ const vistaItems = [
 
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData("actas", async () => {
-  const res = await localFetch<{ actas: Acta[] }>("/api/actas");
-  return res.actas || [];
-});
+const { data, pending } = useAsyncData(
+  "actas",
+  async () => {
+    const res = await localFetch<{ actas: Acta[] }>("/api/actas");
+    return res.actas || [];
+  },
+  { lazy: true },
+);
 const actas = computed(() => (data.value as any as Acta[]) || []);
 
 const years = computed(() => getYearsFromActas(actas.value));
@@ -132,51 +136,55 @@ function onRowSelect(_e: Event, row: { original: Acta }) {
       />
     </div>
 
-    <ChartsActasOverviewCharts :actas="displayed" />
+    <AppDataSkeleton v-if="pending" variant="list" />
 
-    <DataTableCard v-if="vista === 'lista'">
-      <UTable
-        v-model:sorting="sorting"
-        :data="displayed"
-        :columns="tableColumns"
-        :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
-        :empty="emptyMessage"
-        :on-select="onRowSelect"
-      >
-        <template #titulo-cell="{ row }">
-          <NuxtLink
-            :to="`/actas/${(row.original as Acta).id}`"
-            class="hover:underline line-clamp-5"
-            @click.stop
-          >
-            {{ (row.original as Acta).titulo }}
-          </NuxtLink>
-        </template>
-        <template #fecha-cell="{ row }">
-          <span>{{ formatDate((row.original as Acta).fecha) }}</span>
-        </template>
-        <template #resultado-cell="{ row }">
-          <ResultadoBadge :resultado="(row.original as Acta).resultado" />
-        </template>
-        <template #margen-cell="{ row }">
-          <MargenBadge
-            :afirmativos="(row.original as Acta).votosAfirmativos"
-            :negativos="(row.original as Acta).votosNegativos"
-          />
-        </template>
-      </UTable>
-    </DataTableCard>
+    <template v-else>
+      <ChartsActasOverviewCharts :actas="displayed" />
 
-    <ActasGroupedBoard
-      v-else-if="vista === 'anios'"
-      :groups="groupsByAño"
-      :empty-message="emptyMessage"
-    />
+      <DataTableCard v-if="vista === 'lista'">
+        <UTable
+          v-model:sorting="sorting"
+          :data="displayed"
+          :columns="tableColumns"
+          :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
+          :empty="emptyMessage"
+          :on-select="onRowSelect"
+        >
+          <template #titulo-cell="{ row }">
+            <NuxtLink
+              :to="`/actas/${(row.original as Acta).id}`"
+              class="hover:underline line-clamp-5"
+              @click.stop
+            >
+              {{ (row.original as Acta).titulo }}
+            </NuxtLink>
+          </template>
+          <template #fecha-cell="{ row }">
+            <span>{{ formatDate((row.original as Acta).fecha) }}</span>
+          </template>
+          <template #resultado-cell="{ row }">
+            <ResultadoBadge :resultado="(row.original as Acta).resultado" />
+          </template>
+          <template #margen-cell="{ row }">
+            <MargenBadge
+              :afirmativos="(row.original as Acta).votosAfirmativos"
+              :negativos="(row.original as Acta).votosNegativos"
+            />
+          </template>
+        </UTable>
+      </DataTableCard>
 
-    <ActasGroupedBoard
-      v-else-if="vista === 'periodos'"
-      :groups="groupsByPeriodo"
-      :empty-message="emptyMessage"
-    />
+      <ActasGroupedBoard
+        v-else-if="vista === 'anios'"
+        :groups="groupsByAño"
+        :empty-message="emptyMessage"
+      />
+
+      <ActasGroupedBoard
+        v-else-if="vista === 'periodos'"
+        :groups="groupsByPeriodo"
+        :empty-message="emptyMessage"
+      />
+    </template>
   </div>
 </template>

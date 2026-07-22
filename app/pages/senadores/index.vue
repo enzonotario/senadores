@@ -38,10 +38,14 @@ const mostrarActivos = computed({
 
 const { localFetch } = useLocalApi();
 
-const { data } = await useAsyncData("senadores-list", async () => {
-  const res = await localFetch<{ members: Senador[] }>("/api/members");
-  return res.members || [];
-});
+const { data, pending } = useAsyncData(
+  "senadores-list",
+  async () => {
+    const res = await localFetch<{ members: Senador[] }>("/api/members");
+    return res.members || [];
+  },
+  { lazy: true },
+);
 const senadores = computed(() => (data.value as any as Senador[]) || []);
 
 const filters = computed<FilterConfig>(() => ({
@@ -235,95 +239,99 @@ function onRowSelect(_e: Event, row: { original: Senador }) {
       />
     </div>
 
-    <DataTableCard v-if="vista === 'lista'">
-      <UTable
-        v-model:sorting="sorting"
-        :data="displayed"
-        :columns="tableColumns"
-        :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
-        :empty="emptyMessage"
-        :on-select="onRowSelect"
-      >
-        <template #foto-cell="{ row }">
-          <SenadorTableAvatar
-            :src="(row.original as Senador).foto"
-            :alt="(row.original as Senador).nombreCompleto"
-          />
-        </template>
-        <template #nombreCompleto-cell="{ row }">
-          <NuxtLink
-            :to="`/senadores/${(row.original as Senador).id}`"
-            class="hover:underline"
-            @click.stop
-          >
-            {{ (row.original as Senador).nombreCompleto }}
-          </NuxtLink>
-        </template>
-        <template #partido-cell="{ row }">
-          <NuxtLink
-            v-if="partidoPath((row.original as Senador).partido)"
-            :to="partidoPath((row.original as Senador).partido)!"
-            class="inline-flex"
-            @click.stop
-          >
+    <AppDataSkeleton v-if="pending" variant="list" />
+
+    <template v-else>
+      <DataTableCard v-if="vista === 'lista'">
+        <UTable
+          v-model:sorting="sorting"
+          :data="displayed"
+          :columns="tableColumns"
+          :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
+          :empty="emptyMessage"
+          :on-select="onRowSelect"
+        >
+          <template #foto-cell="{ row }">
+            <SenadorTableAvatar
+              :src="(row.original as Senador).foto"
+              :alt="(row.original as Senador).nombreCompleto"
+            />
+          </template>
+          <template #nombreCompleto-cell="{ row }">
+            <NuxtLink
+              :to="`/senadores/${(row.original as Senador).id}`"
+              class="hover:underline"
+              @click.stop
+            >
+              {{ (row.original as Senador).nombreCompleto }}
+            </NuxtLink>
+          </template>
+          <template #partido-cell="{ row }">
+            <NuxtLink
+              v-if="partidoPath((row.original as Senador).partido)"
+              :to="partidoPath((row.original as Senador).partido)!"
+              class="inline-flex"
+              @click.stop
+            >
+              <UBadge
+                variant="outline"
+                color="neutral"
+                class="w-[max-content] max-w-32 whitespace-break-spaces hover:bg-elevated"
+              >
+                {{ (row.original as Senador).partido }}
+              </UBadge>
+            </NuxtLink>
             <UBadge
+              v-else
               variant="outline"
               color="neutral"
-              class="w-[max-content] max-w-32 whitespace-break-spaces hover:bg-elevated"
+              class="w-[max-content] max-w-32 whitespace-break-spaces"
             >
-              {{ (row.original as Senador).partido }}
+              {{ (row.original as Senador).partido || "—" }}
             </UBadge>
-          </NuxtLink>
-          <UBadge
-            v-else
-            variant="outline"
-            color="neutral"
-            class="w-[max-content] max-w-32 whitespace-break-spaces"
-          >
-            {{ (row.original as Senador).partido || "—" }}
-          </UBadge>
-        </template>
-        <template #inicio-cell="{ row }">
-          <span>{{
-            formatDate((row.original as Senador).periodoLegal?.inicio)
-          }}</span>
-        </template>
-        <template #fin-cell="{ row }">
-          <span>{{
-            formatDate((row.original as Senador).periodoLegal?.fin)
-          }}</span>
-        </template>
-        <template #presentismo-cell="{ row }">
-          <UBadge
-            :color="
-              ((row.original as Senador).estadisticas?.presentismo || 0) > 80
-                ? 'success'
-                : 'error'
-            "
-            variant="soft"
-          >
-            {{ (row.original as Senador).estadisticas?.presentismo ?? 0 }}%
-          </UBadge>
-        </template>
-      </UTable>
-    </DataTableCard>
+          </template>
+          <template #inicio-cell="{ row }">
+            <span>{{
+              formatDate((row.original as Senador).periodoLegal?.inicio)
+            }}</span>
+          </template>
+          <template #fin-cell="{ row }">
+            <span>{{
+              formatDate((row.original as Senador).periodoLegal?.fin)
+            }}</span>
+          </template>
+          <template #presentismo-cell="{ row }">
+            <UBadge
+              :color="
+                ((row.original as Senador).estadisticas?.presentismo || 0) > 80
+                  ? 'success'
+                  : 'error'
+              "
+              variant="soft"
+            >
+              {{ (row.original as Senador).estadisticas?.presentismo ?? 0 }}%
+            </UBadge>
+          </template>
+        </UTable>
+      </DataTableCard>
 
-    <SenadoresGroupedTable
-      v-else-if="vista === 'partidos'"
-      group-by="partido"
-      :groups="groupsByPartido"
-      :accent-colors="partidoColores"
-      :group-to="(g) => partidoPath(g.key)"
-      show-presentismo
-      :empty-message="emptyMessage"
-    />
+      <SenadoresGroupedTable
+        v-else-if="vista === 'partidos'"
+        group-by="partido"
+        :groups="groupsByPartido"
+        :accent-colors="partidoColores"
+        :group-to="(g) => partidoPath(g.key)"
+        show-presentismo
+        :empty-message="emptyMessage"
+      />
 
-    <SenadoresGroupedTable
-      v-else-if="vista === 'provincias'"
-      group-by="provincia"
-      :groups="groupsByProvincia"
-      show-presentismo
-      :empty-message="emptyMessage"
-    />
+      <SenadoresGroupedTable
+        v-else-if="vista === 'provincias'"
+        group-by="provincia"
+        :groups="groupsByProvincia"
+        show-presentismo
+        :empty-message="emptyMessage"
+      />
+    </template>
   </div>
 </template>
