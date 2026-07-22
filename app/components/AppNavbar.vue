@@ -137,71 +137,73 @@ const activeTab = computed({
     />
   </UDashboardSidebar>
 
-  <UDashboardNavbar
-    toggle-side="left"
-    :ui="{
-      root: 'sticky top-0 z-50 h-(--ui-header-height) shrink-0 flex items-center justify-between border-b-0 bg-white/70 dark:bg-gray-950/70 backdrop-blur supports-[backdrop-filter]:bg-white/50 page-container !py-0 gap-2 sm:gap-3',
+  <div class="sticky top-0 z-10 border-b bg-white/70 dark:bg-gray-950/70 backdrop-blur supports-[backdrop-filter]:bg-white/50">
+    <UDashboardNavbar
+        toggle-side="left"
+        :ui="{
+      root: 'sticky top-0 z-50 h-(--ui-header-height) shrink-0 flex items-center justify-between border-b-0 page-container !py-0 gap-2 sm:gap-3',
       left: 'flex items-center gap-1.5 min-w-0',
       center: 'hidden lg:flex flex-1 min-w-0 justify-end h-full',
       right: 'flex items-center shrink-0 gap-1.5',
     }"
-  >
-    <template #leading>
-      <AppBrand :logo="!isCongreso" />
-    </template>
-
-    <!-- Slot default = center: oculto en mobile (lg:flex) -->
-    <nav
-      v-if="isLegislative"
-      class="h-full flex justify-end"
-      aria-label="Navegación principal"
     >
-      <UTabs
-        v-model="activeTab"
-        :items="tabItems"
-        variant="link"
-        size="sm"
-        :content="false"
-        activation-mode="manual"
-        :ui="{
+      <template #leading>
+        <AppBrand :logo="!isCongreso" />
+      </template>
+
+      <!-- Slot default = center: oculto en mobile (lg:flex) -->
+      <nav
+          v-if="isLegislative"
+          class="h-full flex justify-end"
+          aria-label="Navegación principal"
+      >
+        <UTabs
+            v-model="activeTab"
+            :items="tabItems"
+            variant="link"
+            size="sm"
+            :content="false"
+            activation-mode="manual"
+            :ui="{
           root: 'h-full w-auto',
           list: 'h-full w-auto p-0 gap-0 border-0 mb-0',
           trigger:
             'h-full rounded-none px-3 sm:px-4 text-sm whitespace-nowrap',
           indicator: 'bottom-0 h-0.5 rounded-none',
         }"
-        class="h-full"
-      />
-    </nav>
+            class="h-full"
+        />
+      </nav>
 
-    <template #right>
-      <template v-if="isLegislative">
-        <UDashboardSearchButton
-          class="hidden sm:inline-flex"
-          size="sm"
-          label="Buscar"
-        />
-        <UDashboardSearchButton
-          class="sm:hidden"
-          size="sm"
-          collapsed
-          aria-label="Buscar"
-        />
-        <UButton
-          :to="otherChamberUrl"
-          target="_blank"
-          external
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          trailing-icon="i-lucide-external-link"
-          class="hidden sm:inline-flex"
-          :aria-label="`Abrir ${otherChamber.membersLabel} en una pestaña nueva`"
-        >
-          {{ otherChamber.membersLabel }}
-        </UButton>
+      <template #right>
+        <template v-if="isLegislative">
+          <UDashboardSearchButton
+              class="hidden sm:inline-flex"
+              size="sm"
+              label="Buscar"
+          />
+          <UDashboardSearchButton
+              class="sm:hidden"
+              size="sm"
+              collapsed
+              aria-label="Buscar"
+          />
+          <UButton
+              :to="otherChamberUrl"
+              target="_blank"
+              external
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              trailing-icon="i-lucide-external-link"
+              class="hidden sm:inline-flex"
+              :aria-label="`Abrir ${otherChamber.membersLabel} en una pestaña nueva`"
+          >
+            {{ otherChamber.membersLabel }}
+          </UButton>
+        </template>
+        <ColorModeToggle />
       </template>
-      <ColorModeToggle />
-    </template>
-  </UDashboardNavbar>
+    </UDashboardNavbar>
+  </div>
 </template>
