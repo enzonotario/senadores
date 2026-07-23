@@ -84,8 +84,17 @@ const filters = computed<FilterConfig>(() => ({
   ...(tipoVotoFilter.value.length ? { tipoVoto: tipoVotoFilter.value } : {}),
 }));
 
+const filtersForMap = computed<FilterConfig>(() => {
+  const { provincia: _p, ...rest } = filters.value;
+  return rest;
+});
+
 const displayed = computed(() =>
   filterDiputados(diputados.value, filters.value),
+);
+
+const displayedForMap = computed(() =>
+  filterDiputados(diputados.value, filtersForMap.value),
 );
 
 const groupsByResultado = computed(() =>
@@ -343,12 +352,23 @@ function onRowSelect(_e: Event, row: { original: Diputado }) {
           :group-to="(g) => bloquePath(g.key)"
           empty-message="No hay diputados para mostrar con los filtros actuales."
         />
-        <DiputadosGroupedBoard
+        <div
           v-else-if="vista === 'provincias'"
-          show-voto-halo
-          :groups="groupsByProvincia"
-          empty-message="No hay diputados para mostrar con los filtros actuales."
-        />
+          class="flex flex-col gap-6"
+        >
+          <AnalisisProvinciasVotoTipoGeoMap
+            :members="displayedForMap"
+            :catalog="provincias"
+            :selected="provinciaFilter"
+            members-label="diputados"
+            @select="(name) => (provinciaFilter = name ? [name] : [])"
+          />
+          <DiputadosGroupedBoard
+            show-voto-halo
+            :groups="groupsByProvincia"
+            empty-message="No hay diputados para mostrar con los filtros actuales."
+          />
+        </div>
       </div>
     </template>
   </div>

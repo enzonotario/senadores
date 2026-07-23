@@ -54,6 +54,11 @@ const filters = computed<FilterConfig>(() => ({
   ...(searchQuery.value ? { nombreCompleto: searchQuery.value } : {}),
 }));
 
+const filtersForMap = computed<FilterConfig>(() => {
+  const { provincia: _p, ...rest } = filters.value;
+  return rest;
+});
+
 const filtered = computed(() =>
   filterSenadores(senadores.value, filters.value),
 );
@@ -66,11 +71,21 @@ const displayed = computed(() =>
   mostrarActivos.value ? activos.value : inactivos.value,
 );
 
+const displayedForMap = computed(() => {
+  const base = filterSenadores(senadores.value, filtersForMap.value);
+  return mostrarActivos.value
+    ? base.filter(isSenadorActivo)
+    : base.filter((d) => !isSenadorActivo(d));
+});
+
 const groupsByPartido = computed(() =>
   groupSenadoresBy(displayed.value, "partido"),
 );
 const groupsByProvincia = computed(() =>
   groupSenadoresBy(displayed.value, "provincia"),
+);
+const groupsByProvinciaMap = computed(() =>
+  groupSenadoresBy(displayedForMap.value, "provincia"),
 );
 
 const partidoColores = computed(() =>
@@ -325,13 +340,30 @@ function onRowSelect(_e: Event, row: { original: Senador }) {
         :empty-message="emptyMessage"
       />
 
-      <SenadoresGroupedTable
+      <div
         v-else-if="vista === 'provincias'"
-        group-by="provincia"
-        :groups="groupsByProvincia"
-        show-presentismo
-        :empty-message="emptyMessage"
-      />
+        class="flex flex-col gap-6"
+      >
+        <AnalisisProvinciasChoroplethMap
+          :data="
+            groupsByProvinciaMap.map((g) => ({
+              name: g.key,
+              value: g.senadores.length,
+              label: g.label,
+            }))
+          "
+          :catalog="provincias"
+          :selected="provinciaFilter"
+          members-label="senadores"
+          @select="(name) => (provinciaFilter = name ? [name] : [])"
+        />
+        <SenadoresGroupedTable
+          group-by="provincia"
+          :groups="groupsByProvincia"
+          show-presentismo
+          :empty-message="emptyMessage"
+        />
+      </div>
     </template>
   </div>
 </template>

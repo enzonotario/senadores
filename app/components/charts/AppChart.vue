@@ -11,6 +11,10 @@ withDefaults(
     ariaLabel: "Gráfico interactivo",
   },
 );
+
+const emit = defineEmits<{
+  click: [params: any];
+}>();
 </script>
 
 <template>
@@ -23,6 +27,7 @@ withDefaults(
       :init-options="{ renderer: 'canvas' }"
       role="img"
       :aria-label="ariaLabel"
+      @click="emit('click', $event)"
     />
     <template #fallback>
       <div

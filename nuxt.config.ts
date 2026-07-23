@@ -129,6 +129,7 @@ export default defineNuxtConfig({
       "HeatmapChart",
       "SankeyChart",
       "GraphChart",
+      "MapChart",
     ],
     components: [
       "GridComponent",
@@ -139,6 +140,7 @@ export default defineNuxtConfig({
       "DatasetComponent",
       "TitleComponent",
       "VisualMapComponent",
+      "GeoComponent",
     ],
     features: ["LabelLayout", "UniversalTransition"],
   },
