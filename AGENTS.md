@@ -53,6 +53,23 @@ El resto: SSR + `Cache-Control` largo (`max-age=31536000`). Tras deploy, **purge
 
 Datos en RAM (`*-data.ts`) + mini-API Nitro (`server/api/*`). El browser no baja dumps de `api.argentinadatos.com`. SQLite solo si hay varias réplicas sin RAM compartida.
 
+### Coolify: zero-downtime (evitar `404 page not found`)
+
+El texto plano **`404 page not found`** (sin UI de la app) es Traefik sin backend sano — no es un 404 de Nuxt. Con healthchecks ON y sin rolling, Coolify para el contenedor viejo antes de que el nuevo esté listo → minutos de 404 durante el pull.
+
+En **cada** app (diputados / senadores / congreso):
+
+1. **Rolling Updates: ON** (Advanced / General). Requiere healthcheck válido y **nombre de contenedor por defecto** (sin custom name). Sin port mapping al host.
+2. **Healthcheck: ON**
+   - Path: `/api/health`
+   - Port: `3000` (el de la app, no 80)
+   - Expected status: `200`
+   - Host: `localhost` (Coolify lo exige)
+3. Build pack = **Dockerfile thin** de la raíz (solo pull), no `Dockerfile.build` en el VPS.
+4. Tras deploy: el viejo sigue *running* hasta que el nuevo pase a *healthy*. Puede quedar un hueco corto (~segundos) por bugs conocidos Coolify/Traefik; no minutos.
+
+La imagen runtime (`Dockerfile.build`) instala `curl` (la UI de Coolify lo usa) y declara `HEALTHCHECK` Docker contra `/api/health` (`interval=10s`, `start-period=40s`).
+
 ### Coolify: el VPS no debe compilar Nuxt
 
 El `Dockerfile` de la raíz **solo hace** `FROM ghcr.io/...` (pull). El build pesado está en `Dockerfile.build` (GitHub Actions, matrix por cámara).
