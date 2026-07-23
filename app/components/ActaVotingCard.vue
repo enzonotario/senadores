@@ -29,7 +29,10 @@ function pct(n: number) {
 <template>
   <NuxtLink :to="`/actas/${acta.id}`" class="block group h-full">
     <UCard
-      :ui="{ body: 'p-0!', header: 'border-0 p-2!' }"
+      :ui="{
+        header: 'border-0 p-2!',
+        body: 'p-0! flex flex-grow',
+      }"
       class="h-full overflow-hidden flex flex-col"
     >
       <template #header>
