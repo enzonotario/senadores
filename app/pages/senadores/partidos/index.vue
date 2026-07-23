@@ -1,6 +1,11 @@
 <script setup lang="ts">
+import { useRouteQuery } from "@vueuse/router";
 import { sortableHeader } from "@/utils/sortableHeader";
 import type { AffinityGroupInput } from "@/utils/votingAffinity";
+import type { Senador } from "@/lib/types";
+import { getUniqueValues, isSenadorActivo } from "@/lib/utils";
+import { groupSenadoresBy } from "@/utils/groupSenadoresBy";
+import { useMultiQuery } from "@/composables/useMultiQuery";
 
 type PartidoRow = {
   nombre: string;
@@ -16,6 +21,13 @@ type AffinityIndexResponse = {
 };
 
 const { localFetch } = useLocalApi();
+const vista = useRouteQuery("vista", "lista");
+const provinciaFilter = useMultiQuery("provincia");
+
+const vistaItems = [
+  { label: "Lista", value: "lista" },
+  { label: "Por provincias", value: "provincias" },
+];
 
 const { data: partidos, pending: pendingPartidos } = useAsyncData(
   "partidos-index",
@@ -38,6 +50,15 @@ const { data: affinityGroups, pending: pendingAffinity } = useAsyncData(
     return res.groups || [];
   },
   { server: false, lazy: true },
+);
+
+const { data: members, pending: pendingMembers } = useAsyncData(
+  "partidos-index-members",
+  async () => {
+    const res = await localFetch<{ members: Senador[] }>("/api/members");
+    return (res.members || []).filter(isSenadorActivo);
+  },
+  { lazy: true },
 );
 
 const { sorting } = useTableSorting("activos", true);
@@ -70,6 +91,36 @@ function onRowSelect(_e: Event, row: { original: PartidoRow }) {
   navigateTo(`/senadores/partidos/${row.original.slug}`);
 }
 
+const categories = computed(() =>
+  (partidos.value || []).map((p) => ({
+    key: p.nombre,
+    label: p.nombre,
+    color: p.color,
+  })),
+);
+
+const compositionMembers = computed(() =>
+  (members.value || []).map((s) => ({
+    provincia: s.provincia,
+    category: s.partido,
+  })),
+);
+
+const provincias = computed(() =>
+  getUniqueValues(members.value || [], "provincia"),
+);
+
+const membersForTable = computed(() => {
+  const list = members.value || [];
+  if (!provinciaFilter.value.length) return list;
+  const set = new Set(provinciaFilter.value);
+  return list.filter((s) => set.has(s.provincia));
+});
+
+const groupsByProvincia = computed(() =>
+  groupSenadoresBy(membersForTable.value, "provincia"),
+);
+
 useChamberSeo({
   title: "Partidos",
   description:
@@ -89,73 +140,104 @@ useChamberSeo({
       </p>
     </div>
 
-    <AppDataSkeleton v-if="pendingPartidos" variant="list" />
+    <SegmentedTabs v-model="vista" :items="vistaItems" :center="false" />
 
-    <DataTableCard v-else>
-      <UTable
-        v-model:sorting="sorting"
-        :data="partidos || []"
-        :columns="tableColumns"
-        :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
-        empty="No se encontraron partidos con senadores activos."
-        :on-select="onRowSelect"
-      >
-        <template #color-cell="{ row }">
-          <span
-            class="inline-block size-3.5 rounded-full ring-2 ring-default"
-            :style="{ backgroundColor: (row.original as PartidoRow).color }"
-            aria-hidden="true"
-          />
-        </template>
-        <template #nombre-cell="{ row }">
-          <NuxtLink
-            :to="`/senadores/partidos/${(row.original as PartidoRow).slug}`"
-            class="inline-flex items-center gap-2.5 font-medium hover:underline min-w-0"
-            @click.stop
-          >
-            <PartidoLogo
-              :partido="(row.original as PartidoRow).nombre"
-              img-class="h-7 w-auto max-w-16 object-contain shrink-0"
-            />
-            <span class="min-w-0">{{
-              (row.original as PartidoRow).nombre
-            }}</span>
-          </NuxtLink>
-        </template>
-        <template #activos-cell="{ row }">
-          {{ (row.original as PartidoRow).activos }}
-        </template>
-        <template #presentismo-cell="{ row }">
-          <div class="flex items-center gap-2 sm:gap-3 min-w-0 w-full max-w-56">
-            <UProgress
-              :model-value="(row.original as PartidoRow).presentismo"
-              size="sm"
-              class="flex-1"
-              :color="
-                (row.original as PartidoRow).presentismo > 80
-                  ? 'success'
-                  : 'error'
-              "
-            />
-            <span class="text-sm tabular-nums w-12 text-right shrink-0">
-              {{ (row.original as PartidoRow).presentismo }}%
-            </span>
-          </div>
-        </template>
-      </UTable>
-    </DataTableCard>
+    <template v-if="vista === 'lista'">
+      <AppDataSkeleton v-if="pendingPartidos" variant="list" />
 
-    <ClientOnly>
-      <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
-      <AnalisisInterGroupAffinityHeatmap
-        v-else-if="(affinityGroups || []).length >= 2"
-        group-label="partido"
-        :groups="affinityGroups || []"
-        group-base-path="/senadores/partidos"
+      <DataTableCard v-else>
+        <UTable
+          v-model:sorting="sorting"
+          :data="partidos || []"
+          :columns="tableColumns"
+          :ui="{ tr: 'cursor-pointer hover:bg-elevated/50' }"
+          empty="No se encontraron partidos con senadores activos."
+          :on-select="onRowSelect"
+        >
+          <template #color-cell="{ row }">
+            <span
+              class="inline-block size-3.5 rounded-full ring-2 ring-default"
+              :style="{ backgroundColor: (row.original as PartidoRow).color }"
+              aria-hidden="true"
+            />
+          </template>
+          <template #nombre-cell="{ row }">
+            <NuxtLink
+              :to="`/senadores/partidos/${(row.original as PartidoRow).slug}`"
+              class="inline-flex items-center gap-2.5 font-medium hover:underline min-w-0"
+              @click.stop
+            >
+              <PartidoLogo
+                :partido="(row.original as PartidoRow).nombre"
+                img-class="h-7 w-auto max-w-16 object-contain shrink-0"
+              />
+              <span class="min-w-0">{{
+                (row.original as PartidoRow).nombre
+              }}</span>
+            </NuxtLink>
+          </template>
+          <template #activos-cell="{ row }">
+            {{ (row.original as PartidoRow).activos }}
+          </template>
+          <template #presentismo-cell="{ row }">
+            <div
+              class="flex items-center gap-2 sm:gap-3 min-w-0 w-full max-w-56"
+            >
+              <UProgress
+                :model-value="(row.original as PartidoRow).presentismo"
+                size="sm"
+                class="flex-1"
+                :color="
+                  (row.original as PartidoRow).presentismo > 80
+                    ? 'success'
+                    : 'error'
+                "
+              />
+              <span class="text-sm tabular-nums w-12 text-right shrink-0">
+                {{ (row.original as PartidoRow).presentismo }}%
+              </span>
+            </div>
+          </template>
+        </UTable>
+      </DataTableCard>
+
+      <ClientOnly>
+        <AppDataSkeleton v-if="pendingAffinity" variant="affinity" />
+        <AnalisisInterGroupAffinityHeatmap
+          v-else-if="(affinityGroups || []).length >= 2"
+          group-label="partido"
+          :groups="affinityGroups || []"
+          group-base-path="/senadores/partidos"
+        />
+        <template #fallback>
+          <AppDataSkeleton variant="affinity" />
+        </template>
+      </ClientOnly>
+    </template>
+
+    <template v-else>
+      <AppDataSkeleton
+        v-if="pendingMembers || pendingPartidos"
+        variant="list"
       />
-      <template #fallback>
-        <AppDataSkeleton variant="affinity" />
-      </template>
-    </ClientOnly>
+      <div v-else class="flex flex-col gap-6">
+        <AnalisisProvinciasCompositionGeoMap
+          :members="compositionMembers"
+          :categories="categories"
+          :catalog="provincias"
+          :selected="provinciaFilter"
+          members-label="senadores"
+          title="Partidos por provincia"
+          description="Cada torta muestra la proporción de partidos entre los senadores activos de esa provincia. Clic para filtrar."
+          @select="(name) => (provinciaFilter = name ? [name] : [])"
+        />
+        <SenadoresGroupedTable
+          group-by="provincia"
+          :groups="groupsByProvincia"
+          show-presentismo
+          empty-message="No hay senadores activos para mostrar."
+        />
+      </div>
+    </template>
   </div>
 </template>
