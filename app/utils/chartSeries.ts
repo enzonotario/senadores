@@ -1,4 +1,9 @@
 import { normalizeResultado, normalizeVotoTipo } from "@/utils/votoTipo";
+import {
+  formatMandatoKey,
+  mandatoKeyFromFecha,
+  type MandatoRange,
+} from "@/utils/memberCareer";
 
 /** Acta mínima para series temporales (diputados o senadores). */
 export type ActaChartRow = {
@@ -21,7 +26,8 @@ export type VotosTimeGroupBy =
   | "mes"
   | "trimestre"
   | "cuatrimestre"
-  | "periodo";
+  | "periodo"
+  | "mandato";
 
 type VotoBucket = {
   afirmativo: number;
@@ -116,17 +122,27 @@ function formatPeriodoKey(key: string): string {
 function bucketKeyForActa(
   a: ActaChartRow,
   groupBy: VotosTimeGroupBy,
+  mandatos?: MandatoRange[],
 ): string | null {
   if (groupBy === "mes") return monthKeyFromFecha(a.fecha);
   if (groupBy === "trimestre") return trimestreKeyFromFecha(a.fecha);
   if (groupBy === "cuatrimestre") return cuatrimestreKeyFromFecha(a.fecha);
+  if (groupBy === "mandato") {
+    if (!mandatos?.length) return null;
+    return mandatoKeyFromFecha(a.fecha, mandatos) || "sin-mandato";
+  }
   return periodoKeyFromActa(a);
 }
 
-function formatBucketKey(key: string, groupBy: VotosTimeGroupBy): string {
+function formatBucketKey(
+  key: string,
+  groupBy: VotosTimeGroupBy,
+  mandatos?: MandatoRange[],
+): string {
   if (groupBy === "mes") return formatMonthKey(key);
   if (groupBy === "trimestre") return formatTrimestreKey(key);
   if (groupBy === "cuatrimestre") return formatCuatrimestreKey(key);
+  if (groupBy === "mandato") return formatMandatoKey(key, mandatos || []);
   return formatPeriodoKey(key);
 }
 
@@ -139,6 +155,11 @@ function sortBucketKeys(keys: string[], groupBy: VotosTimeGroupBy): string[] {
       const bn = Number(b);
       if (!Number.isNaN(an) && !Number.isNaN(bn)) return an - bn;
       return a.localeCompare(b, "es");
+    }
+    if (groupBy === "mandato") {
+      if (a === "sin-mandato") return 1;
+      if (b === "sin-mandato") return -1;
+      return a.localeCompare(b);
     }
     return a.localeCompare(b);
   });
@@ -297,16 +318,17 @@ export function miembroVotoBreakdown(actas: ActaChartRow[]) {
 
 /**
  * Votos del miembro agregados en el tiempo
- * (mes / trimestre / cuatrimestre / período legislativo).
+ * (mes / trimestre / cuatrimestre / período legislativo / mandato).
  */
 export function miembroVotosOverTime(
   actas: ActaChartRow[],
   groupBy: VotosTimeGroupBy = "mes",
+  mandatos: MandatoRange[] = [],
 ) {
   const map = new Map<string, VotoBucket>();
 
   for (const a of actas) {
-    const key = bucketKeyForActa(a, groupBy);
+    const key = bucketKeyForActa(a, groupBy, mandatos);
     if (!key) continue;
     const bucket = map.get(key) || EMPTY_VOTO_BUCKET();
     const tipo = memberVotoTipo(a);
@@ -321,12 +343,56 @@ export function miembroVotosOverTime(
   const keys = sortBucketKeys([...map.keys()], groupBy);
   return {
     keys,
-    labels: keys.map((k) => formatBucketKey(k, groupBy)),
+    labels: keys.map((k) => formatBucketKey(k, groupBy, mandatos)),
     afirmativo: keys.map((k) => map.get(k)!.afirmativo),
     negativo: keys.map((k) => map.get(k)!.negativo),
     abstencion: keys.map((k) => map.get(k)!.abstencion),
     ausente: keys.map((k) => map.get(k)!.ausente),
   };
+}
+
+/** Índice en `dates` (ISO) más cercano a `targetMs` (≥ target si hay empate). */
+export function nearestDateIndex(
+  dates: string[],
+  targetMs: number,
+): number | null {
+  if (!dates.length) return null;
+  let bestIdx = 0;
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < dates.length; i++) {
+    const t = new Date(dates[i]!).getTime();
+    if (Number.isNaN(t)) continue;
+    const dist = Math.abs(t - targetMs);
+    if (dist < bestDist || (dist === bestDist && t >= targetMs)) {
+      bestDist = dist;
+      bestIdx = i;
+    }
+  }
+  return bestDist === Number.POSITIVE_INFINITY ? null : bestIdx;
+}
+
+/** Primer índice con fecha ≥ target (para inicio de mandato). */
+export function firstIndexOnOrAfter(
+  dates: string[],
+  targetMs: number,
+): number | null {
+  for (let i = 0; i < dates.length; i++) {
+    const t = new Date(dates[i]!).getTime();
+    if (!Number.isNaN(t) && t >= targetMs) return i;
+  }
+  return dates.length ? dates.length - 1 : null;
+}
+
+/** Último índice con fecha ≤ target (para fin de mandato). */
+export function lastIndexOnOrBefore(
+  dates: string[],
+  targetMs: number,
+): number | null {
+  for (let i = dates.length - 1; i >= 0; i--) {
+    const t = new Date(dates[i]!).getTime();
+    if (!Number.isNaN(t) && t <= targetMs) return i;
+  }
+  return dates.length ? 0 : null;
 }
 
 export function actaVotoBreakdown(acta: ActaChartRow) {

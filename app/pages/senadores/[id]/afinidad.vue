@@ -5,6 +5,8 @@ import {
   memberActasInWindow,
   type AffinityMemberInput,
 } from "@/utils/votingAffinity";
+import type { CareerCargo } from "@/utils/memberCareer";
+import { mandatoRangesForChamber } from "@/utils/memberCareer";
 import type { Senador } from "@/lib/types";
 
 type MemberProfileResponse = {
@@ -16,6 +18,7 @@ type MemberProfileResponse = {
     resultado?: string | null;
     tipoVotoSenador?: string | null;
   }>;
+  career?: CareerCargo[];
 };
 
 const route = useRoute();
@@ -29,6 +32,9 @@ const { data, pending } = await useAsyncData(
 );
 const senador = computed(() => data.value?.member || null);
 const chartActas = computed(() => data.value?.chartActas || []);
+const mandatoRanges = computed(() =>
+  mandatoRangesForChamber(data.value?.career, "senadores"),
+);
 
 if (senador.value && senador.value.id !== id.value) {
   await navigateTo(`/senadores/${senador.value.id}/afinidad`, {
@@ -139,6 +145,7 @@ useChamberSeo(() => {
         :group-peers="affinityGroupPeers"
         :actas="actas"
         :group-colors="groupColors"
+        :mandatos="mandatoRanges"
       />
       <template #fallback>
         <AppDataSkeleton variant="affinity" />

@@ -11,6 +11,7 @@ import {
   type DissentPeriodPoint,
   type MemberActaInWindow,
 } from "@/utils/votingAffinity";
+import type { MandatoRange } from "@/utils/memberCareer";
 import {
   baseChartChrome,
   useChartPalette,
@@ -39,6 +40,7 @@ const props = withDefaults(
     /** Listado de actas del miembro (título/resultado/voto). */
     actas: AffinityActaMeta[];
     groupColors?: Record<string, string>;
+    mandatos?: MandatoRange[];
   }>(),
   {
     memberFoto: null,
@@ -46,11 +48,26 @@ const props = withDefaults(
     groupTo: null,
     groupPeers: undefined,
     groupColors: () => ({}),
+    mandatos: () => [],
   },
 );
 
 const palette = useChartPalette();
-const periodMode = ref<"mes" | "trimestre">("trimestre");
+const periodMode = ref<"mes" | "trimestre" | "mandato">("trimestre");
+
+const hasMandatos = computed(() => (props.mandatos?.length || 0) >= 2);
+
+const periodModeItems = computed(() => {
+  const items: Array<{ label: string; value: "mes" | "trimestre" | "mandato" }> =
+    [
+      { label: "Trimestre", value: "trimestre" },
+      { label: "Mes", value: "mes" },
+    ];
+  if (hasMandatos.value) {
+    items.push({ label: "Mandato", value: "mandato" });
+  }
+  return items;
+});
 
 const allPairs = computed(() =>
   allPairAffinities(props.memberId, props.peers, {
@@ -78,14 +95,19 @@ const dissent = computed(() => {
   return memberDissent(self, groupForDissent.value, {
     fromDate: AFFINITY_FROM_DATE,
     minGroupVoters: 2,
+    mandatos: props.mandatos,
   });
 });
 
 const periodSeries = computed<DissentPeriodPoint[]>(() => {
   if (!dissent.value) return [];
-  return periodMode.value === "mes"
-    ? dissent.value.byMonth
-    : dissent.value.byTrimestre;
+  if (periodMode.value === "mes") return dissent.value.byMonth;
+  if (periodMode.value === "mandato") return dissent.value.byMandato;
+  return dissent.value.byTrimestre;
+});
+
+watch(hasMandatos, (ok) => {
+  if (!ok && periodMode.value === "mandato") periodMode.value = "trimestre";
 });
 
 const dissentOption = computed(() => {
@@ -343,10 +365,7 @@ function onPairSelect(_e: Event, row: { original: AffinityPair }) {
             <SegmentedTabs
               v-if="dissentOption"
               v-model="periodMode"
-              :items="[
-                { label: 'Trimestre', value: 'trimestre' },
-                { label: 'Mes', value: 'mes' },
-              ]"
+              :items="periodModeItems"
               :center="false"
               variant="link"
             />

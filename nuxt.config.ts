@@ -141,6 +141,9 @@ export default defineNuxtConfig({
       "TitleComponent",
       "VisualMapComponent",
       "GeoComponent",
+      // Bandas / divisores de mandato en MemberVotingCharts
+      "MarkLineComponent",
+      "MarkAreaComponent",
     ],
     features: ["LabelLayout", "UniversalTransition"],
   },

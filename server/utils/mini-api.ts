@@ -9,6 +9,7 @@ import {
   getDiputadosConActas,
   getActaWithDiputadosById,
 } from "../../app/lib/diputados-data";
+import { getMemberCareerCargos } from "../../app/lib/member-career-data";
 import {
   getActas as getActasSenadores,
   getPartidoBySlug,
@@ -439,11 +440,22 @@ export async function buildMemberProfile(
       titulo: a.titulo,
       resultado: a.resultado,
     }));
+    const career = await getMemberCareerCargos({
+      chamber: "diputados",
+      id: String(member.id),
+      nombreCompleto:
+        member.nombreCompleto || `${member.apellido}, ${member.nombre}`,
+      apellido: member.apellido,
+      nombre: member.nombre,
+      provincia: member.provincia,
+      genero: member.genero,
+    });
     return {
       chamber,
       member: slimMemberStats(member),
       chartActas,
       actasMeta,
+      career,
       history: { page, limit, total, items },
     };
   }
@@ -472,11 +484,21 @@ export async function buildMemberProfile(
     titulo: a.titulo,
     resultado: a.resultado,
   }));
+  const career = await getMemberCareerCargos({
+    chamber: "senadores",
+    id: String(member.id),
+    nombreCompleto: member.nombreCompleto || member.nombre,
+    apellido: member.apellido,
+    nombre: member.nombreDePila,
+    provincia: member.provincia,
+    genero: null,
+  });
   return {
     chamber,
     member: slimMemberStats(member),
     chartActas,
     actasMeta,
+    career,
     history: { page, limit, total, items },
   };
 }

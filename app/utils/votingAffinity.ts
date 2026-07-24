@@ -4,6 +4,11 @@ import {
   monthKeyFromFecha,
   trimestreKeyFromFecha,
 } from "@/utils/chartSeries";
+import {
+  formatMandatoKey,
+  mandatoKeyFromFecha,
+  type MandatoRange,
+} from "@/utils/memberCareer";
 import { normalizeVotoTipo } from "@/utils/votoTipo";
 
 /** Misma ventana temporal que Tendencias en el home. */
@@ -65,6 +70,7 @@ export type DissentResult = {
   compared: number;
   byMonth: DissentPeriodPoint[];
   byTrimestre: DissentPeriodPoint[];
+  byMandato: DissentPeriodPoint[];
   /** Actas donde el miembro votó distinto a la moda del grupo. */
   actas: DissentActa[];
 };
@@ -399,10 +405,14 @@ function periodPoints(
 export function memberDissent(
   member: AffinityMemberInput,
   groupMembers: AffinityMemberInput[],
-  options: AffinityOptions & { minGroupVoters?: number } = {},
+  options: AffinityOptions & {
+    minGroupVoters?: number;
+    mandatos?: MandatoRange[];
+  } = {},
 ): DissentResult {
   const fromDate = options.fromDate ?? AFFINITY_FROM_DATE;
   const minGroupVoters = options.minGroupVoters ?? 2;
+  const mandatos = options.mandatos || [];
   const byActa = tallyGroupByActa(groupMembers, fromDate);
   const selfMap = buildVoteMap(member.votes, fromDate);
 
@@ -411,6 +421,7 @@ export function memberDissent(
   const actas: DissentActa[] = [];
   const byMonth = new Map<string, { dissent: number; compared: number }>();
   const byTrimestre = new Map<string, { dissent: number; compared: number }>();
+  const byMandato = new Map<string, { dissent: number; compared: number }>();
 
   for (const [actaId, voto] of selfMap) {
     const tally = byActa.get(actaId);
@@ -430,6 +441,10 @@ export function memberDissent(
     }
     pushPeriod(byMonth, monthKeyFromFecha(tally.fecha), dissented);
     pushPeriod(byTrimestre, trimestreKeyFromFecha(tally.fecha), dissented);
+    if (mandatos.length) {
+      const mKey = mandatoKeyFromFecha(tally.fecha, mandatos) || "sin-mandato";
+      pushPeriod(byMandato, mKey, dissented);
+    }
   }
 
   actas.sort((a, b) => b.fecha.localeCompare(a.fecha));
@@ -440,6 +455,9 @@ export function memberDissent(
     compared,
     byMonth: periodPoints(byMonth, formatMonthKey),
     byTrimestre: periodPoints(byTrimestre, formatTrimestreKey),
+    byMandato: periodPoints(byMandato, (key) =>
+      formatMandatoKey(key, mandatos),
+    ),
     actas,
   };
 }

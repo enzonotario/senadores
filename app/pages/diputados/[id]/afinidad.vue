@@ -7,6 +7,8 @@ import {
   memberActasInWindow,
   type AffinityMemberInput,
 } from "@/utils/votingAffinity";
+import type { CareerCargo } from "@/utils/memberCareer";
+import { mandatoRangesForChamber } from "@/utils/memberCareer";
 import type { Diputado } from "@/lib/types-diputados";
 
 type MemberProfileResponse = {
@@ -23,6 +25,7 @@ type MemberProfileResponse = {
     titulo?: string | null;
     resultado?: string | null;
   }>;
+  career?: CareerCargo[];
 };
 
 const route = useRoute();
@@ -36,6 +39,9 @@ const { data, pending } = await useAsyncData(
 );
 const diputado = computed(() => data.value?.member || null);
 const chartActas = computed(() => data.value?.chartActas || []);
+const mandatoRanges = computed(() =>
+  mandatoRangesForChamber(data.value?.career, "diputados"),
+);
 
 const { data: peersPayload, pending: peersPending } = useAffinityPeers(
   "diputados-affinity-peers",
@@ -144,6 +150,7 @@ useChamberSeo(() => {
         :group-peers="affinityGroupPeers"
         :actas="actas"
         :group-colors="groupColors"
+        :mandatos="mandatoRanges"
       />
       <template #fallback>
         <AppDataSkeleton variant="affinity" />

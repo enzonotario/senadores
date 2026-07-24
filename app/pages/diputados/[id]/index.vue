@@ -4,6 +4,8 @@ import { formatDate, isDiputadoActivo } from "@/lib/utils";
 import { sortableHeader } from "@/utils/sortableHeader";
 import { bloquePath } from "@/utils/bloque";
 import { formatGenero, type ProfileFactSection } from "@/utils/memberProfile";
+import type { CareerCargo } from "@/utils/memberCareer";
+import { mandatoRangesForChamber } from "@/utils/memberCareer";
 import {
   memberActasInWindow,
   type AffinityMemberInput,
@@ -45,6 +47,7 @@ type MemberProfileResponse = {
     total: number;
     items: HistoryRow[];
   };
+  career?: CareerCargo[];
 };
 
 const HISTORY_LIMIT = 40;
@@ -64,6 +67,10 @@ const { data, pending } = await useAsyncData(
 const diputado = computed(() => data.value?.member || null);
 const chartActas = computed(() => data.value?.chartActas || []);
 const actasMeta = computed(() => data.value?.actasMeta || []);
+const career = computed(() => data.value?.career || []);
+const mandatoRanges = computed(() =>
+  mandatoRangesForChamber(career.value, "diputados"),
+);
 
 const historyItems = ref<HistoryRow[]>([]);
 const historyTotal = ref(0);
@@ -323,6 +330,12 @@ const profileSections = computed<ProfileFactSection[]>(() => {
 
             <MemberProfileFacts :sections="profileSections" />
 
+            <MemberCareerTimeline
+              v-if="career.length"
+              :cargos="career"
+              chamber="diputados"
+            />
+
             <div v-if="diputado.estadisticas" class="grid grid-cols-1 gap-4">
               <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 <div
@@ -406,6 +419,8 @@ const profileSections = computed<ProfileFactSection[]>(() => {
         v-if="chartActas.length"
         :actas="chartActas"
         :member-label="`${diputado.nombre} ${diputado.apellido}`"
+        :career="career"
+        chamber="diputados"
       />
 
       <ClientOnly>
@@ -420,6 +435,7 @@ const profileSections = computed<ProfileFactSection[]>(() => {
           :peers="affinityPeers"
           :group-peers="affinityGroupPeers"
           :actas="actasMeta"
+          :mandatos="mandatoRanges"
           :detail-to="`/diputados/${diputado.id}/afinidad`"
         />
         <template #fallback>

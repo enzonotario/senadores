@@ -32,6 +32,7 @@ function getApiOrigin() {
 
 import { createSingleflight } from "./singleflight";
 
+let _senadoresRaw = createSingleflight<any[]>();
 let _senadores = createSingleflight<Senador[]>();
 let _actas = createSingleflight<Acta[]>();
 let _senadoresConActas = createSingleflight<Senador[]>();
@@ -46,6 +47,7 @@ function assertServerData() {
 
 /** Limpia caches en memoria. */
 export function clearSenadoresDataCache() {
+  _senadoresRaw.clear();
   _senadores.clear();
   _actas.clear();
   _senadoresConActas.clear();
@@ -129,10 +131,17 @@ function mapActa(raw: any): Acta {
   };
 }
 
-export async function getSenadores(): Promise<Senador[]> {
-  return _senadores.get(async () => {
+export async function getSenadoresRaw(): Promise<any[]> {
+  return _senadoresRaw.get(async () => {
     const origin = getApiOrigin();
     const raw = await $fetch<any[]>(`${origin}/v1/senado/senadores`);
+    return Array.isArray(raw) ? raw : [];
+  });
+}
+
+export async function getSenadores(): Promise<Senador[]> {
+  return _senadores.get(async () => {
+    const raw = await getSenadoresRaw();
 
     const byId = new Map<string, any>();
     [...raw].sort(maxByPeriod).forEach((d) => {

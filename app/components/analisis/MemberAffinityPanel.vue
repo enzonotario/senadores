@@ -8,6 +8,7 @@ import {
   type AffinityPair,
   type DissentPeriodPoint,
 } from "@/utils/votingAffinity";
+import type { MandatoRange } from "@/utils/memberCareer";
 import {
   baseChartChrome,
   useChartPalette,
@@ -34,6 +35,8 @@ const props = withDefaults(
       titulo?: string | null;
       resultado?: string | null;
     }>;
+    /** Mandatos del miembro (agrupa disidencia por cargo). */
+    mandatos?: MandatoRange[];
   }>(),
   {
     groupName: null,
@@ -41,11 +44,26 @@ const props = withDefaults(
     topN: 8,
     detailTo: undefined,
     actas: () => [],
+    mandatos: () => [],
   },
 );
 
 const palette = useChartPalette();
-const periodMode = ref<"mes" | "trimestre">("trimestre");
+const periodMode = ref<"mes" | "trimestre" | "mandato">("trimestre");
+
+const hasMandatos = computed(() => (props.mandatos?.length || 0) >= 2);
+
+const periodModeItems = computed(() => {
+  const items: Array<{ label: string; value: "mes" | "trimestre" | "mandato" }> =
+    [
+      { label: "Trimestre", value: "trimestre" },
+      { label: "Mes", value: "mes" },
+    ];
+  if (hasMandatos.value) {
+    items.push({ label: "Mandato", value: "mandato" });
+  }
+  return items;
+});
 
 const affinity = computed(() =>
   topAlliesAndOpponents(props.memberId, props.peers, {
@@ -69,14 +87,19 @@ const dissent = computed(() => {
   return memberDissent(self, groupForDissent.value, {
     fromDate: AFFINITY_FROM_DATE,
     minGroupVoters: 2,
+    mandatos: props.mandatos,
   });
 });
 
 const periodSeries = computed<DissentPeriodPoint[]>(() => {
   if (!dissent.value) return [];
-  return periodMode.value === "mes"
-    ? dissent.value.byMonth
-    : dissent.value.byTrimestre;
+  if (periodMode.value === "mes") return dissent.value.byMonth;
+  if (periodMode.value === "mandato") return dissent.value.byMandato;
+  return dissent.value.byTrimestre;
+});
+
+watch(hasMandatos, (ok) => {
+  if (!ok && periodMode.value === "mandato") periodMode.value = "trimestre";
 });
 
 const hasAffinity = computed(
@@ -306,10 +329,7 @@ function pairMeta(pair: AffinityPair) {
             <SegmentedTabs
               v-if="dissentOption"
               v-model="periodMode"
-              :items="[
-                { label: 'Trimestre', value: 'trimestre' },
-                { label: 'Mes', value: 'mes' },
-              ]"
+              :items="periodModeItems"
               :center="false"
               variant="link"
             />

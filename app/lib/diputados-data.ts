@@ -55,6 +55,7 @@ function getApiOrigin() {
 
 import { createSingleflight } from "./singleflight";
 
+let _diputadosRaw = createSingleflight<any[]>();
 let _diputados = createSingleflight<Diputado[]>();
 let _actas = createSingleflight<Acta[]>();
 let _diputadosConActas = createSingleflight<Diputado[]>();
@@ -69,6 +70,7 @@ function assertServerData() {
 
 /** Limpia caches en memoria. */
 export function clearDiputadosDataCache() {
+  _diputadosRaw.clear();
   _diputados.clear();
   _actas.clear();
   _diputadosConActas.clear();
@@ -86,13 +88,21 @@ function maxByPeriod(a: any, b: any) {
   return String(a?.id || "").localeCompare(String(b?.id || ""));
 }
 
-export async function getDiputados(): Promise<Diputado[]> {
-  return _diputados.get(async () => {
+/** Todas las filas de la API (varios mandatos / bloques por id si existen). */
+export async function getDiputadosRaw(): Promise<any[]> {
+  return _diputadosRaw.get(async () => {
     const origin = getApiOrigin();
     const raw = await $fetch<any[]>(`${origin}/v1/diputados/diputados`);
+    return Array.isArray(raw) ? raw : [];
+  });
+}
+
+export async function getDiputados(): Promise<Diputado[]> {
+  return _diputados.get(async () => {
+    const raw = await getDiputadosRaw();
 
     const byId = new Map<string, any>();
-    raw.sort(maxByPeriod).forEach((d) => {
+    [...raw].sort(maxByPeriod).forEach((d) => {
       const id = String(d.id);
       if (!byId.has(id)) byId.set(id, d);
     });

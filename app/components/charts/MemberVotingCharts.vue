@@ -3,7 +3,14 @@ import type { ActaChartRow, VotosTimeGroupBy } from "@/utils/chartSeries";
 import {
   miembroPresentismoSeries,
   miembroVotosOverTime,
+  firstIndexOnOrAfter,
+  lastIndexOnOrBefore,
 } from "@/utils/chartSeries";
+import {
+  mandatoRangesForChamber,
+  type CareerCargo,
+  type CareerChamber,
+} from "@/utils/memberCareer";
 import {
   baseChartChrome,
   useChartPalette,
@@ -13,21 +20,40 @@ import { getVotoTipoConfig, VOTO_TIPO_ORDER } from "@/utils/votoTipo";
 const props = defineProps<{
   actas: ActaChartRow[];
   memberLabel?: string;
+  /** Historial de cargos (para agrupar / marcar mandatos). */
+  career?: CareerCargo[];
+  chamber?: CareerChamber;
 }>();
 
 const palette = useChartPalette();
 
+const mandatos = computed(() =>
+  props.chamber
+    ? mandatoRangesForChamber(props.career, props.chamber)
+    : [],
+);
+
+const hasMandatos = computed(() => mandatos.value.length >= 2);
+
 const groupBy = ref<VotosTimeGroupBy>("mes");
-const groupByItems = [
-  { label: "Mes", value: "mes" },
-  { label: "Trimestre", value: "trimestre" },
-  { label: "Cuatrimestre", value: "cuatrimestre" },
-  { label: "Período legislativo", value: "periodo" },
-];
+const groupByItems = computed(() => {
+  const items: Array<{ label: string; value: VotosTimeGroupBy }> = [
+    { label: "Mes", value: "mes" },
+    { label: "Trimestre", value: "trimestre" },
+    { label: "Cuatrimestre", value: "cuatrimestre" },
+  ];
+  if (hasMandatos.value) {
+    items.push({ label: "Mandato", value: "mandato" });
+  }
+  if (hasPeriodoData.value) {
+    items.push({ label: "Período legislativo", value: "periodo" });
+  }
+  return items;
+});
 
 const series = computed(() => miembroPresentismoSeries(props.actas || []));
 const votosOverTime = computed(() =>
-  miembroVotosOverTime(props.actas || [], groupBy.value),
+  miembroVotosOverTime(props.actas || [], groupBy.value, mandatos.value),
 );
 
 const hasSeries = computed(() => series.value.dates.length > 1);
@@ -37,8 +63,127 @@ const hasPeriodoData = computed(() =>
   (props.actas || []).some((a) => String(a.periodo || "").trim()),
 );
 
-watch(hasPeriodoData, (ok) => {
-  if (!ok && groupBy.value === "periodo") groupBy.value = "mes";
+/** Preferir Mandato cuando hay ≥2 periodos de cargo. */
+watch(
+  hasMandatos,
+  (ok) => {
+    if (ok && groupBy.value === "mes") groupBy.value = "mandato";
+  },
+  { immediate: true },
+);
+
+watch([hasPeriodoData, hasMandatos], () => {
+  const allowed = new Set(groupByItems.value.map((i) => i.value));
+  if (!allowed.has(groupBy.value)) {
+    groupBy.value = hasMandatos.value ? "mandato" : "mes";
+  }
+});
+
+const MANDATO_BAND_A_LIGHT = "rgba(13,148,136,0.22)";
+const MANDATO_BAND_B_LIGHT = "rgba(100,116,139,0.18)";
+const MANDATO_BAND_A_DARK = "rgba(45,212,191,0.18)";
+const MANDATO_BAND_B_DARK = "rgba(148,163,184,0.16)";
+const MANDATO_LINE_LIGHT = "#0f766e";
+const MANDATO_LINE_DARK = "#5eead4";
+
+function visibleMandatoSpans(dates: string[]) {
+  if (!dates.length || !hasMandatos.value) return [];
+  const seriesStart = new Date(dates[0]!).getTime();
+  const seriesEnd = new Date(dates[dates.length - 1]!).getTime();
+  if (Number.isNaN(seriesStart) || Number.isNaN(seriesEnd)) return [];
+  const dark = palette.value.isDark;
+  const tintA = dark ? MANDATO_BAND_A_DARK : MANDATO_BAND_A_LIGHT;
+  const tintB = dark ? MANDATO_BAND_B_DARK : MANDATO_BAND_B_LIGHT;
+
+  const spans: Array<{
+    label: string;
+    from: number;
+    to: number;
+    tint: string;
+  }> = [];
+
+  for (let i = 0; i < mandatos.value.length; i++) {
+    const m = mandatos.value[i]!;
+    if (m.finMs < seriesStart || m.inicioMs > seriesEnd) continue;
+    const startIdx = firstIndexOnOrAfter(
+      dates,
+      Math.max(m.inicioMs, seriesStart),
+    );
+    const endIdx = lastIndexOnOrBefore(
+      dates,
+      Math.min(Number.isFinite(m.finMs) ? m.finMs : seriesEnd, seriesEnd),
+    );
+    if (startIdx == null || endIdx == null) continue;
+    // Sin votos dentro del mandato → no pintar banda inventada.
+    if (startIdx > endIdx) continue;
+    spans.push({
+      label: m.label,
+      from: startIdx,
+      to: endIdx,
+      tint: i % 2 === 0 ? tintA : tintB,
+    });
+  }
+  return spans;
+}
+
+const mandatoMarkLine = computed(() => {
+  const s = series.value;
+  const spans = visibleMandatoSpans(s.dates);
+  if (spans.length < 2) return undefined;
+  const dark = palette.value.isDark;
+  const line = dark ? MANDATO_LINE_DARK : MANDATO_LINE_LIGHT;
+
+  // Solo divisores verticales; el nombre del mandato va en markArea.
+  const data = spans.slice(1).map((span) => ({
+    xAxis: span.from,
+    label: { show: false },
+  }));
+  if (!data.length) return undefined;
+
+  return {
+    symbol: ["none", "none"],
+    animation: false,
+    label: { show: false },
+    lineStyle: {
+      color: line,
+      type: "solid" as const,
+      width: 2.5,
+      opacity: 1,
+    },
+    data,
+  };
+});
+
+const mandatoMarkArea = computed(() => {
+  const s = series.value;
+  const spans = visibleMandatoSpans(s.dates);
+  if (!spans.length) return undefined;
+  const dark = palette.value.isDark;
+  const labelBg = dark ? "rgba(17,24,39,0.88)" : "rgba(255,255,255,0.9)";
+
+  return {
+    silent: true,
+    animation: false,
+    label: {
+      show: true,
+      position: "insideTop",
+      color: dark ? "#e2e8f0" : "#0f766e",
+      fontSize: 11,
+      fontWeight: 600,
+      distance: 4,
+      backgroundColor: labelBg,
+      padding: [2, 5],
+      borderRadius: 3,
+    },
+    data: spans.map((span) => [
+      {
+        name: span.label,
+        itemStyle: { color: span.tint },
+        xAxis: span.from,
+      },
+      { xAxis: span.to },
+    ]),
+  };
 });
 
 const presentismoOption = computed(() => {
@@ -46,6 +191,8 @@ const presentismoOption = computed(() => {
   const p = palette.value;
   const s = series.value;
   const chrome = baseChartChrome(p);
+  const markLine = mandatoMarkLine.value;
+  const markArea = mandatoMarkArea.value;
 
   return {
     ...chrome,
@@ -60,10 +207,13 @@ const presentismoOption = computed(() => {
         const idx = list[0]?.dataIndex ?? 0;
         const titulo = s.titulos[idx] || "";
         const fecha = s.labels[idx] || "";
-        const lines = list.map(
-          (item: any) =>
-            `${item.marker} ${item.seriesName}: <b>${item.value}%</b>`,
-        );
+        const lines = list
+          .filter((item: any) => item.seriesType !== "line" || item.value != null)
+          .filter((item: any) => item.componentType !== "markLine")
+          .map(
+            (item: any) =>
+              `${item.marker} ${item.seriesName}: <b>${item.value}%</b>`,
+          );
         return `<div class="text-xs max-w-xs"><div class="font-medium mb-0.5">${fecha}</div>${
           titulo
             ? `<div class="text-[11px] opacity-80 mb-1 line-clamp-2">${titulo}</div>`
@@ -114,6 +264,8 @@ const presentismoOption = computed(() => {
             ],
           },
         },
+        markLine,
+        markArea,
       },
       {
         name: "Últimas 20",
@@ -221,12 +373,6 @@ const votosOption = computed(() => {
     ],
   };
 });
-
-const visibleGroupByItems = computed(() =>
-  hasPeriodoData.value
-    ? groupByItems
-    : groupByItems.filter((i) => i.value !== "periodo"),
-);
 </script>
 
 <template>
@@ -239,8 +385,8 @@ const visibleGroupByItems = computed(() =>
       title="Asistencia a lo largo del tiempo"
       :description="
         memberLabel
-          ? `Cómo fue cambiando la asistencia de ${memberLabel}.`
-          : 'Cómo fue cambiando la asistencia.'
+          ? `Cómo fue cambiando la asistencia de ${memberLabel}.${hasMandatos ? ' Las bandas marcan cada mandato.' : ''}`
+          : `Cómo fue cambiando la asistencia.${hasMandatos ? ' Las bandas marcan cada mandato.' : ''}`
       "
     >
       <ChartsAppChart
@@ -258,7 +404,7 @@ const visibleGroupByItems = computed(() =>
       <div class="space-y-3">
         <SegmentedTabs
           v-model="groupBy"
-          :items="visibleGroupByItems"
+          :items="groupByItems"
           :center="false"
           variant="link"
         />
